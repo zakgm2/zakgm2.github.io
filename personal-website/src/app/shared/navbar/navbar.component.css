@@ -110,5 +110,14 @@ nav, .navbar-collapse, .navbar-brand, .navbar-nav, .nav-link, .navbar-toggler, .
     #langToggleListItem
     {
         background-color: #0d0d0d !important;
+        justify-content: flex-end;
+    }
+}
+
+@media screen and (max-width: 576px)
+{
+    .navbar-brand
+    {
+        font-size: large;
     }
 }

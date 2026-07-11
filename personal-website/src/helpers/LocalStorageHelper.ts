@@ -3,7 +3,7 @@ export default class LocalStorageHelper
     static SITE_NAME: string="icarus-2.github.io-lang"
     static getLang() : string | null
     {
-        return window.localStorage.getItem(this.SITE_NAME)
+        return window.localStorage.getItem(this.SITE_NAME) ?? 'en'
     }
 
     static setLang(val: string)
