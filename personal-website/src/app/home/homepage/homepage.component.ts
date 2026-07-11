@@ -11,7 +11,7 @@ import { Title } from '@angular/platform-browser';
 export class HomepageComponent implements OnInit {
 
   constructor(private titleService: Title) {
-    titleService.setTitle("Ethan Briffett")
+    titleService.setTitle("Zakary Grand Maison")
    }
 
   ngOnInit(): void {

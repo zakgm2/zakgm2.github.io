@@ -1,3 +1,9 @@
+.mainDescParallax
+{
+    width: 320px;
+    overflow: hidden;
+}
+
 @media screen and (max-width: 768px)
 {
     .leftSideParagraphs

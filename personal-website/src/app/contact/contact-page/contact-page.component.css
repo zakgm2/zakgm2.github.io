@@ -4,8 +4,8 @@
     margin: 20px;
     border-radius: 10px;
     padding: 10px;
-    border: 3px solid black;
-    color: #052432 ;
+    border: 3px solid #dc3545;
+    color: #000000 ;
     width: 100%;
 }
 
@@ -31,16 +31,16 @@ textarea.formItem
 
 
 ::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
-    color: #052432 ;
+    color: #000000 ;
     opacity: 1; /* Firefox */
   }
   
   :-ms-input-placeholder { /* Internet Explorer 10-11 */
-    color: #052432 ;
+    color: #000000 ;
   }
   
   ::-ms-input-placeholder { /* Microsoft Edge */
-    color: #052432 ;
+    color: #000000 ;
   }
 
   @media screen and (max-width: 760px)

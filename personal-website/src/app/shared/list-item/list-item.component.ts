@@ -10,6 +10,7 @@ import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core
 export class ListItemComponent implements OnInit {
 
   @Input() text: string = "Text here";
+  @Input() href: string = "";
 
   constructor() { }
 

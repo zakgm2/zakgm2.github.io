@@ -1,9 +1,42 @@
-<div class="projectInfoOuter"   [style.background-image]="'linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(' + backgroundImageSource + ')'" style="background-size: cover;width: 100%; height: 700px; display: flex; justify-content: center; align-items: center;">
-    <div class="shadow projectInfoInner" style="min-height: 400px; max-height: 700px; background-color: rgb(40,40,40); width: 70%; display: flex; flex-direction: column ;justify-content: center; padding: 40px; margin-left: 30%;">
-        <h1 class="thinHeader colorBlue bg-transparent">{{header}}</h1>
-        <p class="bg-transparent" [innerHTML]="description"></p>
+<div class="projectInfoPage">
+    <div class="projectInfoBg" [style.background-image]="'url(' + backgroundImageSource + ')'"></div>
+    <div class="projectInfoOverlay"></div>
 
-        <app-main-button-href class="bg-transparent" [text]="btnText" [href]="btnHref"></app-main-button-href>
+    <div class="projectInfoHero" appScrollReveal>
+        <h1 class="thinHeader colorAccent">{{header}}</h1>
     </div>
 
+    @if (hasMultipleStages) {
+      <div class="scrollDownArrow" [class.atTop]="atLastStage" (click)="onArrowClick()">
+          @if (atLastStage) {
+            <div class="doubleArrowUp">
+                <div class="triangleUp"></div>
+                <div class="triangleUp"></div>
+            </div>
+          } @else {
+            <div class="triangleDown"></div>
+          }
+      </div>
+    }
+
+    <div class="container projectInfoContent" style="max-width: 65%; padding-top: 40px; padding-bottom: 150px;">
+
+        <div class="introText" appScrollReveal>
+            <p class="descriptionParagraph" [innerHTML]="description"></p>
+        </div>
+
+        @for (feature of flatFeatures; track feature.title; let isLast = $last) {
+          <div class="stageSection" appScrollStage>
+            <h2 class="stageTitle colorAccent">{{feature.title}}</h2>
+            @if (feature.description) {
+              <p class="stageDescription" [innerHTML]="feature.description"></p>
+            }
+            @if (isLast) {
+              <div style="margin-top: 30px;">
+                  <app-main-button-href [text]="btnText" [href]="btnHref"></app-main-button-href>
+              </div>
+            }
+          </div>
+        }
+    </div>
 </div>

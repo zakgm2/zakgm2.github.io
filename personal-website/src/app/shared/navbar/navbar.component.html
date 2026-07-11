@@ -1,5 +1,8 @@
-<nav class="navbar navbar-expand-md">
-  <a routerLink="/" class="navbar-brand">Ethan Briffett</a>
+<nav class="navbar navbar-expand-lg" [class.nav-hidden]="!isVisible">
+  <a routerLink="/" class="navbar-brand d-flex align-items-center">
+    <img src="../../../assets/img/nav/logo.png" alt="Logo" height="40" class="me-2">
+    Zakary Grand Maison
+  </a>
 
   <button
     class="navbar-toggler"
@@ -16,14 +19,18 @@
     <ul class="navbar-nav ms-auto text-end">
       <li><a routerLink="/" class="nav-link" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">{{'nav.homeLink' | translate}}</a></li>
       <li><a routerLink="/projects" class="nav-link" routerLinkActive="active">{{'nav.projectsLink' | translate}}</a></li>
-      <li><a href="https://github.com/ICARUS-2" class="nav-link" target="_blank">GitHub</a></li>
+      <li><a routerLink="/research" class="nav-link" routerLinkActive="active">{{'nav.researchLink' | translate}}</a></li>
+      <li><a href="https://github.com/zakgm2" class="nav-link" target="_blank">GitHub</a></li>
       <li><a routerLink="/contact" class="nav-link" routerLinkActive="active">Contact</a></li>
-      <li id="langSelectListItem">
-        <select #langselect (change)="onLanguageChanged()" name="" id="langSelect" class="nav-link">
-          @for (lang of translate.getLangs(); track lang) {
-            <option [value]="lang" [selected]="lang == currentLang">{{lang}}</option>
+      <li id="langToggleListItem" class="d-flex align-items-center">
+        <div class="langToggle">
+          @for (lang of translate.getLangs(); track lang; let last = $last) {
+            <span class="langOption" [class.active]="lang == currentLang" (click)="setLanguage(lang)">{{lang.toUpperCase()}}</span>
+            @if (!last) {
+              <span class="langDivider">/</span>
+            }
           }
-        </select>
+        </div>
       </li>
     </ul>
   </div>

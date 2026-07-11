@@ -11,10 +11,13 @@ import { ListItemComponent } from './shared/list-item/list-item.component';
 import { ListItemPairComponent } from './shared/list-item-pair/list-item-pair.component';
 import { ProjectsPageComponent } from './projects/projects-page/projects-page.component';
 import { ContactPageComponent } from './contact/contact-page/contact-page.component';
+import { ResearchPageComponent } from './research/research-page/research-page.component';
 import { MainButtonComponent } from './shared/main-button/main-button.component';
 import { ZoomCardLinkComponent } from './shared/zoom-card-link/zoom-card-link.component';
 import { ProjectInfoComponent } from './projects/project-info/project-info.component';
 import { MainButtonHrefComponent } from './shared/main-button-href/main-button-href.component';
+import { ScrollRevealDirective } from './shared/scroll-reveal.directive';
+import { ScrollStageDirective } from './shared/scroll-stage.directive';
 import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { HttpClient, provideHttpClient, withInterceptorsFromDi, withXhr } from '@angular/common/http';
@@ -34,10 +37,13 @@ export function HttpLoaderFactory(http: HttpClient)
         ListItemPairComponent,
         ProjectsPageComponent,
         ContactPageComponent,
+        ResearchPageComponent,
         MainButtonComponent,
         ZoomCardLinkComponent,
         ProjectInfoComponent,
-        MainButtonHrefComponent
+        MainButtonHrefComponent,
+        ScrollRevealDirective,
+        ScrollStageDirective
     ],
     bootstrap: [AppComponent], imports: [BrowserModule,
         AppRoutingModule,

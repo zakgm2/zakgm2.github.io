@@ -2,11 +2,39 @@ nav
 {
     padding-left: 10%;
     padding-right: 10%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    transform: translateY(0);
+    transition: transform 0.3s ease;
+    border-bottom: 3px solid #dc3545;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.6);
+}
+
+nav.nav-hidden
+{
+    transform: translateY(-95%);
+}
+
+@media screen and (max-width: 1300px)
+{
+    nav
+    {
+        padding-left: 3%;
+        padding-right: 3%;
+    }
 }
 
 .navbar-brand
 {
     font-size: xx-large;
+}
+
+.navbar-brand img
+{
+    background-color: #0d0d0d;
 }
 
 .nav-link
@@ -21,12 +49,12 @@ nav
 .nav-link.active
 {
     color: white !important;
-    border-top: 3px solid #007bff !important;
+    border-top: 3px solid #dc3545 !important;
 }
 
 .nav-link:hover
 {
-    color:  #84bdfa !important;
+    color:  #ff5c5c !important;
 }
 
 .navbar-toggler-icon
@@ -37,25 +65,50 @@ nav
 nav, .navbar-collapse, .navbar-brand, .navbar-nav, .nav-link, .navbar-toggler, .navbar-toggler-icon
 {
     /*background-color: rgb(30, 12, 79) !important;*/
-    background-color: #052432 !important;
+    background-color: #0d0d0d !important;
     color: white
 }
 
-#langSelect
+.langToggle
 {
-    height: 49px;
-    padding-top: 6px;
+    display: flex;
+    align-items: center;
+    background-color: transparent;
+    padding-left: 15px;
+    padding-right: 15px;
 }
 
-@media screen and (max-width: 760px)
+.langOption
 {
-    #langSelect
-    {
-        display: unset;
-    }
+    background-color: transparent;
+    color: lightgray;
+    font-size: large;
+    cursor: pointer;
+    user-select: none;
+}
 
-    #langSelectListItem
+.langOption:hover
+{
+    color: #ff5c5c;
+}
+
+.langOption.active
+{
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.langDivider
+{
+    background-color: transparent;
+    color: lightgray;
+    margin: 0 6px;
+}
+
+@media screen and (max-width: 991px)
+{
+    #langToggleListItem
     {
-        background-color: #052432 !important;
+        background-color: #0d0d0d !important;
     }
 }

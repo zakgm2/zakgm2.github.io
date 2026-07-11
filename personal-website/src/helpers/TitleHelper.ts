@@ -1,6 +1,6 @@
 export default class TitleHelper
 {
-    static BASE_TITLE: string = "Ethan Briffett"
+    static BASE_TITLE: string = "Zakary Grand Maison"
 
     static concat(title: string = "")
     {

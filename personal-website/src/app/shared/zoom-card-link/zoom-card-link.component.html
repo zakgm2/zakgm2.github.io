@@ -3,20 +3,20 @@
   @if (href != '') {
     <div class="shadow zoomOuter" style="background-color: rgb(40,40,40); width: 475px; height: 340px; display: flex; justify-content: center; align-items: center; flex-direction: column;">
       <a [href]="href">
-        <div class="zoom" [style]='"background-image: url("+imgSrc+");"' style="background-repeat: no-repeat; background-size: contain; width: 400px; height: 225px;">
+        <div class="zoom" [style]='"background-image: url("+imgSrc+");"' style="background-repeat: no-repeat; background-size: contain; background-position: center; width: 400px; height: 225px;">
         </div>
       </a>
-      <h2 class="colorBlue thinHeader mt-2 text-center" style="background-color: transparent;">{{text}}</h2>
+      <h2 class="colorAccent thinHeader mt-2 text-center" style="background-color: transparent;">{{text}}</h2>
     </div>
   }
 
   @if (routerLink != '') {
     <div class="shadow zoomOuter" style="background-color: rgb(40,40,40); width: 475px; height: 340px; display: flex; justify-content: center; align-items: center; flex-direction: column;">
       <a [routerLink]="routerLink">
-        <div class="zoom" [style]='"background-image: url("+imgSrc+");"' style="background-repeat: no-repeat; background-size: contain; width: 400px; height: 225px;">
+        <div class="zoom" [style]='"background-image: url("+imgSrc+");"' style="background-repeat: no-repeat; background-size: contain; background-position: center; width: 400px; height: 225px;">
         </div>
       </a>
-      <h2 class="colorBlue thinHeader mt-2 text-center" style="background-color: transparent;">{{text}}</h2>
+      <h2 class="colorAccent thinHeader mt-2 text-center" style="background-color: transparent;">{{text}}</h2>
     </div>
   }
 

@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import LocalStorageHelper from './../../../helpers/LocalStorageHelper';
 
@@ -12,7 +12,10 @@ import LocalStorageHelper from './../../../helpers/LocalStorageHelper';
 })
 export class NavbarComponent implements OnInit {
 
-  currentLang = null;
+  currentLang: string | null = null;
+  isVisible: boolean = true;
+
+  private hoveringTop = false;
 
   constructor(public translate: TranslateService) {
     //@ts-ignore
@@ -22,14 +25,30 @@ export class NavbarComponent implements OnInit {
   ngOnInit(): void {
   }
 
-  onLanguageChanged()
+  @HostListener('window:scroll')
+  onScroll(): void {
+    this.recompute();
+  }
+
+  @HostListener('window:mousemove', ['$event'])
+  onMouseMove(event: MouseEvent): void {
+    this.hoveringTop = event.clientY <= 75;
+    this.recompute();
+  }
+
+  private recompute(): void {
+    const atTop = window.scrollY < 80;
+    const visible = atTop || this.hoveringTop;
+    if (this.isVisible !== visible)
+    {
+      this.isVisible = visible;
+    }
+  }
+
+  setLanguage(lang: string)
   {
-    let langSelect = document.getElementById("langSelect")
-    
-    //@ts-ignore
-    this.translate.use(langSelect.value)
-    
-    //@ts-ignore
-    LocalStorageHelper.setLang(langSelect.value)
+    this.translate.use(lang)
+    this.currentLang = lang
+    LocalStorageHelper.setLang(lang)
   }
 }

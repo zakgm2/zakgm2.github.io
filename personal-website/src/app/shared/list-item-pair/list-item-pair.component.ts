@@ -11,6 +11,8 @@ export class ListItemPairComponent implements OnInit {
 
   @Input() item1: string = ""
   @Input() item2: string = ""
+  @Input() href1: string = ""
+  @Input() href2: string = ""
 
   constructor() { }
 

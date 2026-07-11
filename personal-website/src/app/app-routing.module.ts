@@ -3,135 +3,39 @@ import { RouterModule, Routes } from '@angular/router';
 import { HomepageComponent } from './home/homepage/homepage.component';
 import { ProjectsPageComponent } from './projects/projects-page/projects-page.component';
 import { ContactPageComponent } from './contact/contact-page/contact-page.component';
+import { ResearchPageComponent } from './research/research-page/research-page.component';
 import { ProjectInfoComponent } from './projects/project-info/project-info.component';
 import ProjectInfoModel from '../models/ProjectInfoModel';
 
 const routes: Routes = [
   {path: '', component: HomepageComponent},
   {path: 'projects', component: ProjectsPageComponent},
+  {path: 'research', component: ResearchPageComponent},
   {path: 'contact', component: ContactPageComponent},
 
-  //test project info
-  /*
-  {path: "projects/test", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/home/view2.webp", //Background image
-    "Test header",                         //Header
-    "Test description",                    //Description
-    "Test",                                //Button text
-    "",                                    //Href
-    "/projects"                            //Router link
-  )},*/
-
-  //CHONSE2
-  {path: "projects/chonse2", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/chonse2.webp", //Background image
-    "projects.chonse2",
-    "https://icarus-2.github.io/chonse2",
+  //PhysicsLibrary
+  {path: "projects/physicslibrary", component: ProjectInfoComponent, data: new ProjectInfoModel(
+    "../../../assets/img/projects/physicslibrary.webp", //Background image
+    "projects.physicsLibrary",
+    "https://github.com/zakgm2/PhysicsLibrary",
     ""
   )},
 
-  //MoneroOcean Custom UI
-  {path: "projects/moneroocean-custom-ui", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/moneroocean-customui.webp", //Background image
-    "projects.moneroOceanCustomUi",
-    "https://icarus-2.github.io/monero-ocean",
+  //PhysicsAnalysisGUI
+  {path: "projects/physicsanalysisgui", component: ProjectInfoComponent, data: new ProjectInfoModel(
+    "../../../assets/img/projects/physicsanalysisgui.webp",
+    "projects.physicsAnalysisGui",
+    "https://github.com/zakgm2/PhysicsAnalysisGUI",
     ""
   )},
 
-  
-  //ElliptiKeys
-  {path: "projects/elliptikeys", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/elliptikeys.webp",
-    "projects.elliptiKeys",
-    "https://elliptikeys.github.io/",
+  //NeuroData-Interface
+  {path: "projects/neurodata-interface", component: ProjectInfoComponent, data: new ProjectInfoModel(
+    "../../../assets/img/projects/neurodata-interface.webp",
+    "projects.neuroDataInterface",
+    "https://github.com/zakgm2/NeuroData-Interface",
     ""
   )},
-
-  
-  //HG Pizza
-  {path: "projects/hella-good-pizza-site", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/hgpizza.webp",
-    "projects.hellaGoodPizza",
-    "https://github.com/ICARUS-2/Web3Project",
-    ""
-  )},
-  
-  //Matte Storefront
-  {path: "projects/matte-storefront", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/mattestorefront.webp",
-    "projects.matteStorefront",
-    "/assets/downloads/MatteWebApplication.zip",
-    ""
-  )},
-
-  //MYVC App
-  {path: "projects/myvc-app", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/myvc-app.webp",
-    "projects.myvcApp",
-    "https://github.com/ICARUS-2/COMP353-Projects/tree/main/MainProject/MYVCApp",
-    ""
-  )},
-
-  //TNNF BudgetViewer
-  {path: "projects/tnnf-budgetviewer", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/tnnfbudget.webp",
-    "projects.tnnfBudgetViewer",
-    "https://github.com/ICARUS-2/AppDevProject",
-    ""
-  )},
-
-  //XvB_GUI
-  {path: "projects/xvb-gui", component: ProjectInfoComponent, data: new ProjectInfoModel(
-      "../../../assets/img/projects/xvb-gui.webp",
-      "projects.xvbGui",
-      "https://github.com/ICARUS-2/XvB_GUI",
-      ""
-    )
-  },
-  
-  //TNNFContainers
-  {path: "projects/tnnfcontainers-iot-system", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/tnnfcontainers.webp",
-    "projects.tnnfContainers",
-    "/assets/downloads/course-project-tnnf-main.zip",
-    ""
-    )
-  },
-  
-  //WaveDodger
-  {path: "projects/wavedodger", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/wavedodger.webp",
-    "projects.waveDodger",
-    "/assets/downloads/WaveDodger-1.12.zip",
-    ""
-  )},
-    
-  //WaveDodger II
-  {path: "projects/wavedodger2", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/wavedodger2.webp",
-    "projects.waveDodger2",
-    "https://github.com/ICARUS-2/wavedodger2",
-    ""
-  )
-  },
-  
-  //SlimeDodger
-  {path: "projects/slimedodger", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/slimedodger.webp",
-    "projects.slimeDodger",
-    "/games/SlimeDodger/",
-    ""
-  )
-  },
-  
-  //Video Poker
-  {path: "projects/video-poker", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/video-poker.webp",
-    "projects.videoPoker",
-    "/assets/downloads/VideoPoker.zip",
-    ""
-  )
-  },
 
   //redirect old site
   {path: 'en', redirectTo: ""},

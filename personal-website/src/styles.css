@@ -25,9 +25,9 @@ html
     font-size: 18px;
 }
 
-.colorBlue
+.colorAccent
 {
-    color: #13b8e6;
+    color: #dc3545;
 }
 
 .zoom {
@@ -54,6 +54,24 @@ html
 .unstyledLink:visited
 {
     color: white;
+}
+
+.scroll-reveal
+{
+    opacity: 0;
+    transform: translateY(35px);
+    transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+
+.scroll-reveal.revealed
+{
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.scroll-stage
+{
+    will-change: transform, opacity;
 }
 
 app-root {
