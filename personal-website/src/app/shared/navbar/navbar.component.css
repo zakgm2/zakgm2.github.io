@@ -48,7 +48,7 @@ nav.nav-hidden
 
 .nav-link.active
 {
-    color: white !important;
+    color: #dc3545 !important;
     border-top: 3px solid #dc3545 !important;
 }
 
