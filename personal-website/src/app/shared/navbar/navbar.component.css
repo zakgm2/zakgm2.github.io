@@ -121,3 +121,8 @@ nav, .navbar-collapse, .navbar-brand, .navbar-nav, .nav-link, .navbar-toggler, .
         font-size: large;
     }
 }
+
+.navbar-collapse.collapsing
+{
+    transition: none !important;
+}
