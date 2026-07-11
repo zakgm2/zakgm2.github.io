@@ -51,4 +51,17 @@ export class NavbarComponent implements OnInit {
     this.currentLang = lang
     LocalStorageHelper.setLang(lang)
   }
+
+  closeMobileMenu(): void
+  {
+    const menu = document.getElementById('toggleMobileMenu');
+    if (!menu || !menu.classList.contains('show')) return;
+    //@ts-ignore
+    const bootstrap = (window as any).bootstrap;
+    if (bootstrap)
+    {
+      const collapse = bootstrap.Collapse.getOrCreateInstance(menu, { toggle: false });
+      collapse.hide();
+    }
+  }
 }
