@@ -8,7 +8,7 @@
 .banner img
 {
     width: 100%;
-    object-fit: center;
+    object-fit: cover;
 }
 
 h1
@@ -21,6 +21,7 @@ h1
     color: white;
     text-align: center;
     margin-top: 50px;
+    font-weight: bold;
     text-shadow: 0 2px 8px rgb(0, 0, 0), 0 0 20px rgb(0, 0, 0);
     z-index: 5;
 }

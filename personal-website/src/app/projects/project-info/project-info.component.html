@@ -23,6 +23,11 @@
 
         <div class="introText" appScrollReveal>
             <p class="descriptionParagraph" [innerHTML]="description"></p>
+            @if (flatFeatures.length === 0) {
+              <div style="margin-top: 30px;">
+                  <app-main-button-href [text]="btnText" [href]="btnHref"></app-main-button-href>
+              </div>
+            }
         </div>
 
         @for (feature of flatFeatures; track feature.title; let isLast = $last) {

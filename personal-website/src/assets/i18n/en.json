@@ -8,7 +8,7 @@
         "bannerText": "Zakary Grand Maison - Physics Student",
         "aboutMeHeader": "About <span class='colorAccent'>Me</span>",
         "aboutMeDescription": "I'm Zak, an Honours physics student at Concordia University, minoring in Science College, on track for a PhD in medical physics.",
-        "aboutMeDescription2": "My current research explores symbolic self-projection — investigating how the spaces people imagine and the characters they identify with reflect ideal self-concept and psychological state. I'm developing this independently, alongside coursework and an upcoming SCOL 391 research internship.",
+        "aboutMeDescription2": "My current research explores symbolic self-projection, investigating how the spaces people imagine and the characters they identify with reflect ideal self-concept and psychological state. I'm developing this study independently, alongside my coursework, and I'm also currently working in a neuroscience lab investigating Drug Use Disorder in animal models.",
         "aboutMeDescription3": "I'm interested in the intersection of physics, psychology, and applied research methodology, with a long-term focus on medical imaging and physics applications in healthcare.",
         "seeMyProjectsButton": "See my projects!",
         "workWithMeButton": "Work with me?",
@@ -39,7 +39,7 @@
             "infoPageFeatureGroups": [
                 {
                     "header": "Data Loading",
-                    "summary": "Load TDT tank folders, Oxysoft/Artinis NIRS exports, Excel/CSV/TSV files, Terranova PT2 EFNMR/MRI images, and text-field study folders — all through one unified menu, with automatic detection of multiple side-by-side tables in a single sheet."
+                    "summary": "Load TDT tank folders, Oxysoft/Artinis NIRS exports, Excel/CSV/TSV files, Terranova PT2 EFNMR/MRI images, and text-field study folders, all through one unified menu, with automatic detection of multiple side-by-side tables in a single sheet."
                 },
                 {
                     "header": "Interactive Plotting",
@@ -55,29 +55,29 @@
                 },
                 {
                     "header": "Text Field Study Analysis",
-                    "summary": "Compare any pair of fields across a folder of per-subject JSON data with no fixed schema, using sentence-transformer embeddings and paired similarity metrics. Full statistical validation follows — permutation testing, Benjamini-Hochberg FDR correction, Cohen's d, word-count-controlled regression, bootstrap confidence intervals, and leave-one-out sensitivity checks."
+                    "summary": "Compare any pair of fields across a folder of per-subject JSON data with no fixed schema, using sentence-transformer embeddings and paired similarity metrics. Full statistical validation follows: permutation testing, Benjamini-Hochberg FDR correction, Cohen's d, word-count-controlled regression, bootstrap confidence intervals, and leave-one-out sensitivity checks."
                 }
             ]
         },
         "neuroDataInterface": {
             "projectsPageHeader": "NeuroData-Interface (v1)",
             "infoPageHeader": "NeuroData-Interface (v1)",
-            "infoPageDescription": "The first version of my data analysis GUI, originally built for Synapse TDT neuroscience data — supporting event marking, epoch analysis, and signal visualization for lab recordings. That work has since evolved into <a href='/projects/physicsanalysisgui' class='unstyledLink'>PhysicsAnalysisGUI</a>, a general-purpose tool for all the data analysis and visualization I need across my research.",
+            "infoPageDescription": "The first version of my data analysis GUI, originally built for Synapse TDT neuroscience data, supporting event marking, epoch analysis, and signal visualization for lab recordings. That work has since evolved into <a href='/projects/physicsanalysisgui' class='unstyledLink'>PhysicsAnalysisGUI</a>, a general-purpose tool for all the data analysis and visualization I need across my research.",
             "infoPageButtonText": "GitHub Repository"
         }
     },
     "research": {
         "bannerText": "Research",
         "currentResearchHeader": "Current Research",
-        "currentResearchDescription": "My current research explores symbolic self-projection — investigating how the spaces people imagine and the characters they identify with reflect ideal self-concept and psychological state.",
-        "currentResearchDescription2": "I'm developing this study independently, alongside coursework and an upcoming SCOL 391 research internship.",
+        "currentResearchDescription": "My current research explores symbolic self-projection, investigating how the spaces people imagine and the characters they identify with reflect ideal self-concept and psychological state. I'm developing this study independently, alongside my coursework.",
+        "currentResearchDescription2": "I'm also currently working in a neuroscience lab, investigating Drug Use Disorder in animal models.",
         "interestsHeader": "Research Interests",
         "interestsDescription": "I'm interested in the intersection of physics, psychology, and applied research methodology, with a long-term focus on medical imaging and physics applications in healthcare.",
         "interestAreasHeader": "Areas of Interest",
         "interestArea1": "Applications of Physics in Cancer Treatment",
         "interestArea2": "Applications of Physics in Neuroscience and Psychology",
         "pathHeader": "Academic Path",
-        "pathDescription": "I'm an Honours physics student at Concordia University, minoring in Science College, on track for a PhD in medical physics."
+        "pathDescription": "I'm an Honours physics student at Concordia University with a 3.9 GPA, minoring in Science College, on track for a PhD in medical physics."
     },
     "contact": {
         "bannerText": "Contact",
