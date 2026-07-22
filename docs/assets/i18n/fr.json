@@ -8,7 +8,7 @@
         "bannerText": "Zakary Grand Maison - Étudiant en Physique",
         "aboutMeHeader": "À Propos de <span class='colorAccent'>Moi</span>",
         "aboutMeDescription": "Je suis Zak, étudiant en physique au programme Honours de l'Université Concordia, avec mineure au Science College, en voie d'un doctorat en physique médicale.",
-        "aboutMeDescription2": "Mes recherches actuelles portent sur l'auto-projection symbolique — l'étude de la façon dont les espaces que les gens imaginent et les personnages auxquels ils s'identifient reflètent leur concept de soi idéal et leur état psychologique. Je développe ce projet de façon indépendante, en parallèle de mes cours et d'un stage de recherche à venir dans le cadre du cours SCOL 391.",
+        "aboutMeDescription2": "Mes recherches actuelles portent sur l'auto-projection symbolique, l'étude de la façon dont les espaces que les gens imaginent et les personnages auxquels ils s'identifient reflètent leur concept de soi idéal et leur état psychologique. Je développe cette étude de façon indépendante, en parallèle de mes cours, et je travaille également en ce moment dans un laboratoire de neuroscience où j'étudie le trouble de l'usage de drogues chez des modèles animaux.",
         "aboutMeDescription3": "Je m'intéresse à l'intersection de la physique, de la psychologie et de la méthodologie de recherche appliquée, avec un objectif à long terme axé sur l'imagerie médicale et les applications de la physique dans le domaine de la santé.",
         "seeMyProjectsButton": "Voir mes projets!",
         "workWithMeButton": "Travaille avec moi?",
@@ -38,7 +38,7 @@
             "infoPageFeatureGroups": [
                 {
                     "header": "Chargement de Données",
-                    "summary": "Chargez des dossiers TDT, des exports NIRS Oxysoft/Artinis, des fichiers Excel/CSV/TSV, des images EFNMR/IRM Terranova PT2, et des dossiers d'études de champs textuels — le tout via un menu unifié, avec détection automatique de plusieurs tableaux côte à côte dans une même feuille."
+                    "summary": "Chargez des dossiers TDT, des exports NIRS Oxysoft/Artinis, des fichiers Excel/CSV/TSV, des images EFNMR/IRM Terranova PT2, et des dossiers d'études de champs textuels, le tout via un menu unifié, avec détection automatique de plusieurs tableaux côte à côte dans une même feuille."
                 },
                 {
                     "header": "Tracé Interactif",
@@ -54,14 +54,14 @@
                 },
                 {
                     "header": "Analyse d'Études de Champs Textuels",
-                    "summary": "Comparez n'importe quelle paire de champs à travers un dossier de données JSON par sujet, sans schéma fixe, grâce aux plongements sentence-transformers et aux métriques de similarité appariée. Une validation statistique complète suit — test de permutation, correction FDR de Benjamini-Hochberg, d de Cohen, régression contrôlée par le nombre de mots, intervalles de confiance bootstrap, et vérifications de sensibilité leave-one-out."
+                    "summary": "Comparez n'importe quelle paire de champs à travers un dossier de données JSON par sujet, sans schéma fixe, grâce aux plongements sentence-transformers et aux métriques de similarité appariée. Une validation statistique complète suit : test de permutation, correction FDR de Benjamini-Hochberg, d de Cohen, régression contrôlée par le nombre de mots, intervalles de confiance bootstrap, et vérifications de sensibilité leave-one-out."
                 }
             ]
         },
         "neuroDataInterface": {
             "projectsPageHeader": "NeuroData-Interface (v1)",
             "infoPageHeader": "NeuroData-Interface (v1)",
-            "infoPageDescription": "La première version de mon interface d'analyse de données, initialement conçue pour les données de neuroscience Synapse TDT — prenant en charge le marquage d'événements, l'analyse par époques et la visualisation des signaux pour les enregistrements de laboratoire. Ce travail a depuis évolué vers <a href='/projects/physicsanalysisgui' class='unstyledLink'>PhysicsAnalysisGUI</a>, un outil polyvalent pour toute l'analyse et la visualisation de données dont j'ai besoin dans mes recherches.",
+            "infoPageDescription": "La première version de mon interface d'analyse de données, initialement conçue pour les données de neuroscience Synapse TDT, prenant en charge le marquage d'événements, l'analyse par époques et la visualisation des signaux pour les enregistrements de laboratoire. Ce travail a depuis évolué vers <a href='/projects/physicsanalysisgui' class='unstyledLink'>PhysicsAnalysisGUI</a>, un outil polyvalent pour toute l'analyse et la visualisation de données dont j'ai besoin dans mes recherches.",
             "infoPageButtonText": "Dépot GitHub"
         },
         "featuresHeader": "Fonctionnalités"
@@ -69,15 +69,15 @@
     "research": {
         "bannerText": "Recherche",
         "currentResearchHeader": "Recherche Actuelle",
-        "currentResearchDescription": "Mes recherches actuelles portent sur l'auto-projection symbolique — l'étude de la façon dont les espaces que les gens imaginent et les personnages auxquels ils s'identifient reflètent leur concept de soi idéal et leur état psychologique.",
-        "currentResearchDescription2": "Je développe cette étude de façon indépendante, en parallèle de mes cours et d'un stage de recherche à venir dans le cadre du cours SCOL 391.",
+        "currentResearchDescription": "Mes recherches actuelles portent sur l'auto-projection symbolique, l'étude de la façon dont les espaces que les gens imaginent et les personnages auxquels ils s'identifient reflètent leur concept de soi idéal et leur état psychologique. Je développe cette étude de façon indépendante, en parallèle de mes cours.",
+        "currentResearchDescription2": "Je travaille également en ce moment dans un laboratoire de neuroscience, où j'étudie le trouble de l'usage de drogues chez des modèles animaux.",
         "interestsHeader": "Intérêts de Recherche",
         "interestsDescription": "Je m'intéresse à l'intersection de la physique, de la psychologie et de la méthodologie de recherche appliquée, avec un objectif à long terme axé sur l'imagerie médicale et les applications de la physique dans le domaine de la santé.",
         "interestAreasHeader": "Domaines d'Intérêt",
         "interestArea1": "Applications de la Physique dans le Traitement du Cancer",
         "interestArea2": "Applications de la Physique en Neuroscience et en Psychologie",
         "pathHeader": "Parcours Académique",
-        "pathDescription": "Je suis étudiant en physique au programme Honours de l'Université Concordia, avec mineure au Science College, en voie d'un doctorat en physique médicale."
+        "pathDescription": "Je suis étudiant en physique au programme Honours de l'Université Concordia avec une moyenne de 3.9, avec mineure au Science College, en voie d'un doctorat en physique médicale."
     },
     "contact": {
         "bannerText": "Contact",
