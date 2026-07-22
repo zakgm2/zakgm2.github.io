@@ -8,15 +8,15 @@
 .projectInfoBg
 {
     position: fixed;
-    top: -20px;
-    left: -20px;
-    width: calc(100vw + 40px);
-    height: calc(100vh + 40px);
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     background-color: rgb(20,20,20);
-    filter: brightness(0.45) saturate(0.65) contrast(1.05) blur(3px);
+    filter: brightness(0.4) saturate(0.6) contrast(1.05);
     z-index: 0;
 }
 
@@ -27,7 +27,7 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: linear-gradient(to bottom, rgba(10,10,10,0.25) 0%, rgba(10,10,10,0.62) 100%) !important;
+    background: linear-gradient(to bottom, rgba(10,10,10,0.4) 0%, rgba(10,10,10,0.72) 100%) !important;
     background-color: transparent !important;
     z-index: 1;
     pointer-events: none;
