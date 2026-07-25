@@ -2,7 +2,8 @@
     "nav": {
         "homeLink": "Acceuil",
         "projectsLink": "Projets",
-        "researchLink": "Recherche"
+        "researchLink": "Recherche",
+        "papersLink": "Articles"
     },
     "home": {
         "bannerText": "Zakary Grand Maison - Étudiant en Physique",
@@ -78,6 +79,20 @@
         "interestArea2": "Applications de la Physique en Neuroscience et en Psychologie",
         "pathHeader": "Parcours Académique",
         "pathDescription": "Je suis étudiant en physique au programme Honours de l'Université Concordia avec une moyenne de 3.9, avec mineure au Science College, en voie d'un doctorat en physique médicale."
+    },
+    "papers": {
+        "bannerText": "Articles",
+        "mainHeader": "Rapports de Laboratoire et Articles",
+        "introDescription": "Une sélection de rapports de laboratoire issus de mes cours de physique. Tous les graphiques et reconstructions d'images dans ces rapports ont été générés avec ma propre application, PhysicsAnalysisGUI.",
+        "downloadButtonText": "Télécharger le PDF",
+        "efnmrMri": {
+            "title": "RMN en Champ Terrestre et IRM de Tissus Biologiques",
+            "description": "Étude de la résonance magnétique nucléaire en champ terrestre et de l'IRM en écho de spin 2D avec le système Terranova, mesurant les temps de relaxation T1/T2 dans l'eau et un poivron, et imageant la structure interne des tissus à plusieurs résolutions."
+        },
+        "nirsMuscle": {
+            "title": "Mesure de la Consommation d'Oxygène du Muscle Squelettique par NIRS",
+            "description": "Utilisation de la spectroscopie proche infrarouge pour suivre l'oxyhémoglobine et la désoxyhémoglobine lors d'occlusions veineuses et artérielles à deux intensités d'exercice, estimant le débit sanguin de l'avant-bras et la consommation d'oxygène tissulaire à partir des pentes du signal d'hémoglobine."
+        }
     },
     "contact": {
         "bannerText": "Contact",

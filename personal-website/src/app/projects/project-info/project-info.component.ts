@@ -36,6 +36,7 @@ export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnDestroy(): void {
     this.routeDataSubscription?.unsubscribe();
     this.translationSubscription?.unsubscribe();
+    document.body.classList.remove('project-info-active');
   }
 
   ngAfterViewInit(): void {
@@ -77,6 +78,8 @@ export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnInit(): void {
+    document.body.classList.add('project-info-active');
+
     this.routeDataSubscription = this.route.data.subscribe(d =>
       {
         if (d["backgroundImageSource"])

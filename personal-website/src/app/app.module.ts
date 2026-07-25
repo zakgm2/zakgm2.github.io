@@ -12,6 +12,7 @@ import { ListItemPairComponent } from './shared/list-item-pair/list-item-pair.co
 import { ProjectsPageComponent } from './projects/projects-page/projects-page.component';
 import { ContactPageComponent } from './contact/contact-page/contact-page.component';
 import { ResearchPageComponent } from './research/research-page/research-page.component';
+import { PapersPageComponent } from './papers/papers-page/papers-page.component';
 import { MainButtonComponent } from './shared/main-button/main-button.component';
 import { ZoomCardLinkComponent } from './shared/zoom-card-link/zoom-card-link.component';
 import { ProjectInfoComponent } from './projects/project-info/project-info.component';
@@ -38,6 +39,7 @@ export function HttpLoaderFactory(http: HttpClient)
         ProjectsPageComponent,
         ContactPageComponent,
         ResearchPageComponent,
+        PapersPageComponent,
         MainButtonComponent,
         ZoomCardLinkComponent,
         ProjectInfoComponent,

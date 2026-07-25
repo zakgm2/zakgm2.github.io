@@ -1,0 +1,25 @@
+<app-triangular-banner headerText="{{'papers.bannerText' | translate}}" imgSrc="../../../assets/img/home/sunset.webp" imgPosition="center"></app-triangular-banner>
+
+<div class="container" style="max-width: 80%;">
+    <h1 class="thinHeader" style="margin-bottom: 30px;">{{'papers.mainHeader' | translate}}</h1>
+    <p class="descriptionParagraph">
+        {{'papers.introDescription' | translate}}
+    </p>
+
+    <div style="margin-top: 60px"></div>
+
+    @for (item of items; track item.href; let isLast = $last) {
+      <div>
+          <h2 class="thinHeader colorAccent" style="margin-bottom: 10px;">{{item.titleKey | translate}}</h2>
+          <p class="descriptionParagraph">
+              {{item.descriptionKey | translate}}
+          </p>
+          <app-main-button-href text="{{'papers.downloadButtonText' | translate}}" [href]="item.href"></app-main-button-href>
+      </div>
+      @if (!isLast) {
+        <div style="margin-top: 60px"></div>
+      }
+    }
+
+    <div style="margin-top: 100px"></div>
+</div>

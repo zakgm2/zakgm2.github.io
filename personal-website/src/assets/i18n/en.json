@@ -2,7 +2,8 @@
     "nav": {
         "homeLink": "Home",
         "projectsLink": "Projects",
-        "researchLink": "Research"
+        "researchLink": "Research",
+        "papersLink": "Papers"
     },
     "home": {
         "bannerText": "Zakary Grand Maison - Physics Student",
@@ -78,6 +79,20 @@
         "interestArea2": "Applications of Physics in Neuroscience and Psychology",
         "pathHeader": "Academic Path",
         "pathDescription": "I'm an Honours physics student at Concordia University with a 3.9 GPA, minoring in Science College, on track for a PhD in medical physics."
+    },
+    "papers": {
+        "bannerText": "Papers",
+        "mainHeader": "Lab Reports & Papers",
+        "introDescription": "A selection of lab reports from my physics coursework. All plots and image reconstructions in these reports were generated with my own app, PhysicsAnalysisGUI.",
+        "downloadButtonText": "Download PDF",
+        "efnmrMri": {
+            "title": "Earth's Field NMR and MRI of Biological Tissue",
+            "description": "Investigated Earth's field nuclear magnetic resonance and 2D spin-echo MRI using the Terranova system, measuring T1/T2 relaxation times in water and a bell pepper and imaging internal tissue structure at multiple resolutions."
+        },
+        "nirsMuscle": {
+            "title": "Measuring Skeletal Muscle Oxygen Consumption with NIRS",
+            "description": "Used near-infrared spectroscopy to track oxyhemoglobin and deoxyhemoglobin during venous and arterial occlusions at two exercise intensities, estimating forearm blood flow and tissue oxygen consumption from the hemoglobin signal slopes."
+        }
     },
     "contact": {
         "bannerText": "Contact",

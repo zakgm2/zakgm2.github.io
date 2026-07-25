@@ -4,6 +4,7 @@ import { HomepageComponent } from './home/homepage/homepage.component';
 import { ProjectsPageComponent } from './projects/projects-page/projects-page.component';
 import { ContactPageComponent } from './contact/contact-page/contact-page.component';
 import { ResearchPageComponent } from './research/research-page/research-page.component';
+import { PapersPageComponent } from './papers/papers-page/papers-page.component';
 import { ProjectInfoComponent } from './projects/project-info/project-info.component';
 import ProjectInfoModel from '../models/ProjectInfoModel';
 
@@ -11,6 +12,7 @@ const routes: Routes = [
   {path: '', component: HomepageComponent},
   {path: 'projects', component: ProjectsPageComponent},
   {path: 'research', component: ResearchPageComponent},
+  {path: 'papers', component: PapersPageComponent},
   {path: 'contact', component: ContactPageComponent},
 
   //PhysicsLibrary
