@@ -57,7 +57,7 @@
 .scrollDownArrow
 {
     position: fixed;
-    bottom: 24px;
+    bottom: 70px;
     left: 50%;
     transform: translateX(-50%);
     cursor: pointer;
@@ -211,5 +211,10 @@
     .stageTitle
     {
         font-size: 1.8rem;
+    }
+
+    .scrollDownArrow
+    {
+        bottom: 90px;
     }
 }

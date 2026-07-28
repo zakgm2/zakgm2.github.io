@@ -83,7 +83,7 @@
     "papers": {
         "bannerText": "Articles",
         "mainHeader": "Rapports de Laboratoire et Articles",
-        "introDescription": "Une sélection de rapports de laboratoire issus de mes cours de physique. Tous les graphiques et reconstructions d'images dans ces rapports ont été générés avec ma propre application, PhysicsAnalysisGUI.",
+        "introDescription": "Une sélection de rapports de laboratoire issus de mes cours de physique. Tous les graphiques et reconstructions d'images dans ces rapports ont été générés avec ma propre application, <a href='/projects/physicsanalysisgui' class='unstyledLink'>PhysicsAnalysisGUI</a>.",
         "downloadButtonText": "Télécharger le PDF",
         "efnmrMri": {
             "title": "RMN en Champ Terrestre et IRM de Tissus Biologiques",

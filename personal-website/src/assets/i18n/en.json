@@ -83,7 +83,7 @@
     "papers": {
         "bannerText": "Papers",
         "mainHeader": "Lab Reports & Papers",
-        "introDescription": "A selection of lab reports from my physics coursework. All plots and image reconstructions in these reports were generated with my own app, PhysicsAnalysisGUI.",
+        "introDescription": "A selection of lab reports from my physics coursework. All plots and image reconstructions in these reports were generated with my own app, <a href='/projects/physicsanalysisgui' class='unstyledLink'>PhysicsAnalysisGUI</a>.",
         "downloadButtonText": "Download PDF",
         "efnmrMri": {
             "title": "Earth's Field NMR and MRI of Biological Tissue",

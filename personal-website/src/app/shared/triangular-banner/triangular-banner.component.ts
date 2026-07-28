@@ -12,6 +12,7 @@ export class TriangularBannerComponent implements OnInit {
   @Input() headerText: string = ''
   @Input() descriptionText: string = ''
   @Input() imgPosition: string = 'center'
+  @Input() imgFilter: string = 'none'
 
   constructor() { }
 

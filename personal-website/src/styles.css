@@ -16,7 +16,7 @@ html
 
 html:has(body.project-info-active)
 {
-    scroll-snap-type: y mandatory;
+    scroll-snap-type: y proximity;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
