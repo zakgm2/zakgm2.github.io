@@ -1,5 +1,4 @@
-import { ThisReceiver } from '@angular/compiler';
-import { Component, Input, OnInit, OnDestroy, AfterViewInit, HostListener, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, ChangeDetectionStrategy, HostListener } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { LangChangeEvent, TranslateService } from '@ngx-translate/core';
@@ -13,7 +12,7 @@ import TitleHelper from '../../../helpers/TitleHelper';
     changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
-export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
+export class ProjectInfoComponent implements OnInit, OnDestroy {
 
   @Input() backgroundImageSource: string = "";
   @Input() header: string = "Header text";
@@ -28,7 +27,16 @@ export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
 
   routeDataSubscription: Subscription | null = null;
   translationSubscription: Subscription | null = null;
-  atLastStage: boolean = false;
+
+  // -1 = intro/hero, 0..N-1 = a stage. Native scroll/swipe input is blocked
+  // on multi-stage pages (see onWheel/onTouchEnd) so this index is always
+  // the single source of truth for where we are — we never need to infer
+  // position from live scroll math, which is what made the old
+  // scroll-driven implementation fragile on iOS Safari.
+  currentStageIndex: number = -1;
+  private isAnimating: boolean = false;
+  private animLockTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private touchStartY: number = 0;
 
   constructor(private route: ActivatedRoute, private titleService: Title,private translateService: TranslateService) {
 
@@ -37,72 +45,110 @@ export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
     this.routeDataSubscription?.unsubscribe();
     this.translationSubscription?.unsubscribe();
     document.body.classList.remove('project-info-active');
-    document.body.classList.remove('js-scrolling');
 
-    if (this.smoothScrollTimeoutId !== null) {
-      clearTimeout(this.smoothScrollTimeoutId);
+    if (this.animLockTimeoutId !== null) {
+      clearTimeout(this.animLockTimeoutId);
     }
-  }
-
-  ngAfterViewInit(): void {
-    setTimeout(() => this.updateArrowState());
-  }
-
-  @HostListener('window:scroll')
-  @HostListener('window:resize')
-  onWindowScroll(): void {
-    this.updateArrowState();
-  }
-
-  private updateArrowState(): void {
-    const sections = document.querySelectorAll('.stageSection');
-
-    if (sections.length <= 1) {
-      this.atLastStage = false;
-      return;
-    }
-
-    const lastSection = sections[sections.length - 1] as HTMLElement;
-    const rect = lastSection.getBoundingClientRect();
-    const viewportCenter = window.innerHeight / 2;
-    const center = rect.top + rect.height / 2;
-
-    this.atLastStage = center <= viewportCenter + 50;
   }
 
   get hasMultipleStages(): boolean {
     return this.flatFeatures.length > 1;
   }
 
+  get atLastStage(): boolean {
+    return this.currentStageIndex === this.flatFeatures.length - 1;
+  }
+
   onArrowClick(): void {
     if (this.atLastStage) {
-      this.smoothScrollTo(0);
+      this.goToStage(-1);
     } else {
-      this.scrollToNext();
+      this.goToStage(this.currentStageIndex + 1);
     }
   }
 
-  private smoothScrollTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  @HostListener('window:wheel', ['$event'])
+  onWheel(event: WheelEvent): void {
+    if (!this.hasMultipleStages) return;
+    event.preventDefault();
 
-  private smoothScrollTo(targetY: number): void {
-    // Native scroll-snap can fight a JS-driven smooth scroll and pull the
-    // page back to the previously snapped stage once it re-engages. The
-    // 'scrollend' event is unreliable for this on iOS Safari (it can fire
-    // early while combined with a scroll-snap-type change mid-animation,
-    // re-enabling snap before the animation reaches its target and pulling
-    // the page straight back to the stage it started from) so a fixed
-    // timeout long enough to cover the animation is used instead.
-    if (this.smoothScrollTimeoutId !== null) {
-      clearTimeout(this.smoothScrollTimeoutId);
+    if (this.isAnimating) return;
+
+    if (event.deltaY > 0) {
+      this.onArrowClick();
+    } else if (event.deltaY < 0) {
+      this.goToStage(this.currentStageIndex - 1);
+    }
+  }
+
+  @HostListener('window:touchstart', ['$event'])
+  onTouchStart(event: TouchEvent): void {
+    if (!this.hasMultipleStages) return;
+    this.touchStartY = event.touches[0].clientY;
+  }
+
+  @HostListener('window:touchmove', ['$event'])
+  onTouchMove(event: TouchEvent): void {
+    if (!this.hasMultipleStages) return;
+    event.preventDefault();
+  }
+
+  @HostListener('window:touchend', ['$event'])
+  onTouchEnd(event: TouchEvent): void {
+    if (!this.hasMultipleStages) return;
+    if (this.isAnimating) return;
+
+    const deltaY = this.touchStartY - event.changedTouches[0].clientY;
+    const swipeThreshold = 30;
+
+    if (Math.abs(deltaY) < swipeThreshold) return;
+
+    if (deltaY > 0) {
+      this.onArrowClick();
+    } else {
+      this.goToStage(this.currentStageIndex - 1);
+    }
+  }
+
+  private goToStage(index: number): void {
+    const clamped = Math.max(-1, Math.min(index, this.flatFeatures.length - 1));
+    if (clamped === this.currentStageIndex) return;
+
+    this.currentStageIndex = clamped;
+    this.isAnimating = true;
+
+    window.scrollTo({top: this.computeTargetYForIndex(clamped), behavior: 'smooth'});
+
+    if (this.animLockTimeoutId !== null) {
+      clearTimeout(this.animLockTimeoutId);
     }
 
-    document.body.classList.add('js-scrolling');
-    window.scrollTo({top: targetY, behavior: 'smooth'});
+    this.animLockTimeoutId = setTimeout(() => {
+      this.isAnimating = false;
+      this.animLockTimeoutId = null;
+    }, 700);
+  }
 
-    this.smoothScrollTimeoutId = setTimeout(() => {
-      document.body.classList.remove('js-scrolling');
-      this.smoothScrollTimeoutId = null;
-    }, 900);
+  private computeTargetYForIndex(index: number): number {
+    if (index < 0) return 0;
+
+    const sections = document.querySelectorAll('.stageSection');
+    const section = sections[index] as HTMLElement;
+    const viewportCenter = window.innerHeight / 2;
+
+    return this.documentOffsetTop(section) + section.offsetHeight / 2 - viewportCenter;
+  }
+
+  private documentOffsetTop(el: HTMLElement): number {
+    let top = 0;
+    let node: HTMLElement | null = el;
+
+    while (node) {
+      top += node.offsetTop;
+      node = node.offsetParent as HTMLElement | null;
+    }
+
+    return top;
   }
 
   ngOnInit(): void {
@@ -155,55 +201,5 @@ export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
     ];
 
     this.titleService.setTitle(TitleHelper.concat(this.header))
-  }
-
-  scrollToNext()
-  {
-    const sections = Array.from(document.querySelectorAll('.stageSection')) as HTMLElement[];
-    const viewportCenter = window.innerHeight / 2;
-    const currentCenter = window.scrollY + viewportCenter;
-
-    for (const section of sections)
-    {
-      // offsetTop/offsetHeight reflect layout geometry only, unlike
-      // getBoundingClientRect() which includes the live scale() transform
-      // the scroll-reveal directive applies for the zoom effect. Using the
-      // transformed rect here would compute a target that doesn't match
-      // where CSS scroll-snap-align actually anchors, so the native snap
-      // silently corrects to a different (often earlier) stage once it
-      // re-engages after the animation.
-      const sectionCenter = this.documentOffsetTop(section) + section.offsetHeight / 2;
-
-      if (sectionCenter > currentCenter + 50)
-      {
-        this.smoothScrollTo(sectionCenter - viewportCenter);
-        return;
-      }
-    }
-
-    // Already at or past every section's center — snap to the last
-    // section's own center rather than overshooting into unsnapped
-    // territory, which mandatory scroll-snap would otherwise correct by
-    // pulling back to an earlier stage once it re-engages.
-    if (sections.length > 0)
-    {
-      const last = sections[sections.length - 1];
-      const lastCenter = this.documentOffsetTop(last) + last.offsetHeight / 2;
-      this.smoothScrollTo(lastCenter - viewportCenter);
-    }
-  }
-
-  private documentOffsetTop(el: HTMLElement): number
-  {
-    let top = 0;
-    let node: HTMLElement | null = el;
-
-    while (node)
-    {
-      top += node.offsetTop;
-      node = node.offsetParent as HTMLElement | null;
-    }
-
-    return top;
   }
 }

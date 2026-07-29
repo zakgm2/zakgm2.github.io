@@ -47,7 +47,6 @@
     justify-content: center;
     text-align: center;
     background-color: transparent !important;
-    scroll-snap-align: start;
 }
 
 .projectInfoHero h1
@@ -169,13 +168,6 @@
     align-items: center;
     justify-content: center;
     padding: 30px 0;
-    scroll-snap-align: center;
-}
-
-.snapEscapeSpacer
-{
-    height: 60vh;
-    scroll-snap-align: none;
 }
 
 .stageTitle

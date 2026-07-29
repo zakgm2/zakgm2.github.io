@@ -25,7 +25,6 @@ body
 
 html:has(body.project-info-active)
 {
-    scroll-snap-type: y mandatory;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -33,11 +32,6 @@ html:has(body.project-info-active)
 html:has(body.project-info-active)::-webkit-scrollbar
 {
     display: none;
-}
-
-html:has(body.project-info-active.js-scrolling)
-{
-    scroll-snap-type: none;
 }
 
 body.project-info-active
