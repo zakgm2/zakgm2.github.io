@@ -31,7 +31,7 @@
         </div>
 
         @for (feature of flatFeatures; track feature.title; let isLast = $last) {
-          <div class="stageSection" appScrollStage>
+          <div class="stageSection" [class.noSnap]="isLast" appScrollStage>
             <h2 class="stageTitle colorAccent">{{feature.title}}</h2>
             @if (feature.description) {
               <p class="stageDescription" [innerHTML]="feature.description"></p>

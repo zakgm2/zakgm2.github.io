@@ -12,6 +12,12 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif;}
 html
 {
     scroll-behavior: auto !important;
+    background-color: #dc3545 !important;
+}
+
+body
+{
+    background-color: #dc3545 !important;
 }
 
 html:has(body.project-info-active)
