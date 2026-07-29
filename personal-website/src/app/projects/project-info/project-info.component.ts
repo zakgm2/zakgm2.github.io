@@ -114,10 +114,18 @@ export class ProjectInfoComponent implements OnInit, OnDestroy {
     const clamped = Math.max(-1, Math.min(index, this.flatFeatures.length - 1));
     if (clamped === this.currentStageIndex) return;
 
+    // Compute the target BEFORE touching any state. If this throws (e.g. the
+    // DOM section lookup momentarily fails), isAnimating never gets set and
+    // can't get stuck locked — a previous version set isAnimating = true
+    // before this call, and an exception here would skip the setTimeout
+    // that resets it, permanently blocking all future wheel/touch input.
+    const targetY = this.computeTargetYForIndex(clamped);
+    if (targetY === null) return;
+
     this.currentStageIndex = clamped;
     this.isAnimating = true;
 
-    window.scrollTo({top: this.computeTargetYForIndex(clamped), behavior: 'smooth'});
+    window.scrollTo({top: targetY, behavior: 'smooth'});
 
     if (this.animLockTimeoutId !== null) {
       clearTimeout(this.animLockTimeoutId);
@@ -129,11 +137,13 @@ export class ProjectInfoComponent implements OnInit, OnDestroy {
     }, 700);
   }
 
-  private computeTargetYForIndex(index: number): number {
+  private computeTargetYForIndex(index: number): number | null {
     if (index < 0) return 0;
 
     const sections = document.querySelectorAll('.stageSection');
-    const section = sections[index] as HTMLElement;
+    const section = sections[index] as HTMLElement | undefined;
+    if (!section) return null;
+
     const viewportCenter = window.innerHeight / 2;
 
     return this.documentOffsetTop(section) + section.offsetHeight / 2 - viewportCenter;
