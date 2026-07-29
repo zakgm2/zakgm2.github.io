@@ -14,7 +14,6 @@ html
     scroll-behavior: auto !important;
     background-color: #590600 !important;
     touch-action: pan-y;
-    overflow-x: hidden;
 }
 
 body
