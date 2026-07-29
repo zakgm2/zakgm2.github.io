@@ -35,7 +35,8 @@ export class ProjectInfoComponent implements OnInit, OnDestroy {
   // scroll-driven implementation fragile on iOS Safari.
   currentStageIndex: number = -1;
   private isAnimating: boolean = false;
-  private animLockTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private animFrameId: number | null = null;
+  private animSafetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private touchStartY: number = 0;
 
   constructor(private route: ActivatedRoute, private titleService: Title,private translateService: TranslateService) {
@@ -46,8 +47,12 @@ export class ProjectInfoComponent implements OnInit, OnDestroy {
     this.translationSubscription?.unsubscribe();
     document.body.classList.remove('project-info-active');
 
-    if (this.animLockTimeoutId !== null) {
-      clearTimeout(this.animLockTimeoutId);
+    if (this.animFrameId !== null) {
+      cancelAnimationFrame(this.animFrameId);
+    }
+
+    if (this.animSafetyTimeoutId !== null) {
+      clearTimeout(this.animSafetyTimeoutId);
     }
   }
 
@@ -126,15 +131,63 @@ export class ProjectInfoComponent implements OnInit, OnDestroy {
     this.isAnimating = true;
 
     window.scrollTo({top: targetY, behavior: 'smooth'});
+    this.watchForScrollSettle();
+  }
 
-    if (this.animLockTimeoutId !== null) {
-      clearTimeout(this.animLockTimeoutId);
+  // A fixed timeout for "animation done" is a guess that doesn't match how
+  // long a real device's smooth-scroll actually takes (varies with distance
+  // and device speed) — guess too short and a new gesture can fire mid
+  // animation, racing with it. Instead, poll scrollY each frame and only
+  // release the lock once it's stopped moving for a few consecutive frames.
+  private watchForScrollSettle(): void {
+    if (this.animFrameId !== null) {
+      cancelAnimationFrame(this.animFrameId);
+    }
+    if (this.animSafetyTimeoutId !== null) {
+      clearTimeout(this.animSafetyTimeoutId);
     }
 
-    this.animLockTimeoutId = setTimeout(() => {
-      this.isAnimating = false;
-      this.animLockTimeoutId = null;
-    }, 700);
+    let lastY = window.scrollY;
+    let stableFrames = 0;
+
+    const check = () => {
+      const y = window.scrollY;
+
+      if (Math.abs(y - lastY) < 0.5) {
+        stableFrames++;
+      } else {
+        stableFrames = 0;
+      }
+
+      lastY = y;
+
+      if (stableFrames >= 4) {
+        this.finishAnimating();
+        return;
+      }
+
+      this.animFrameId = requestAnimationFrame(check);
+    };
+
+    this.animFrameId = requestAnimationFrame(check);
+
+    // Safety net in case something prevents the settle check from ever
+    // resolving (should not happen, but must never leave input locked out).
+    this.animSafetyTimeoutId = setTimeout(() => this.finishAnimating(), 2500);
+  }
+
+  private finishAnimating(): void {
+    this.isAnimating = false;
+
+    if (this.animFrameId !== null) {
+      cancelAnimationFrame(this.animFrameId);
+      this.animFrameId = null;
+    }
+
+    if (this.animSafetyTimeoutId !== null) {
+      clearTimeout(this.animSafetyTimeoutId);
+      this.animSafetyTimeoutId = null;
+    }
   }
 
   private computeTargetYForIndex(index: number): number | null {
