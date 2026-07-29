@@ -168,8 +168,9 @@
     scroll-snap-align: center;
 }
 
-.stageSection.noSnap
+.snapEscapeSpacer
 {
+    height: 60vh;
     scroll-snap-align: none;
 }
 

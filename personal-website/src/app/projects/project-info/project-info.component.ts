@@ -71,9 +71,28 @@ export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
 
   onArrowClick(): void {
     if (this.atLastStage) {
-      window.scrollTo({top: 0, behavior: 'smooth'});
+      this.smoothScrollTo(0);
     } else {
       this.scrollToNext();
+    }
+  }
+
+  private smoothScrollTo(targetY: number): void {
+    // Native scroll-snap can fight a JS-driven smooth scroll and pull the
+    // page back to the previously snapped stage once the animation settles.
+    // Disabling snap for the duration of the animation avoids that fight.
+    document.body.classList.add('js-scrolling');
+    window.scrollTo({top: targetY, behavior: 'smooth'});
+
+    const reenableSnap = () => {
+      document.body.classList.remove('js-scrolling');
+      window.removeEventListener('scrollend', reenableSnap);
+    };
+
+    if ('onscrollend' in window) {
+      window.addEventListener('scrollend', reenableSnap, {once: true});
+    } else {
+      setTimeout(reenableSnap, 700);
     }
   }
 
@@ -133,20 +152,49 @@ export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
   {
     const sections = Array.from(document.querySelectorAll('.stageSection')) as HTMLElement[];
     const viewportCenter = window.innerHeight / 2;
+    const currentCenter = window.scrollY + viewportCenter;
 
     for (const section of sections)
     {
-      const rect = section.getBoundingClientRect();
-      const center = rect.top + rect.height / 2;
+      // offsetTop/offsetHeight reflect layout geometry only, unlike
+      // getBoundingClientRect() which includes the live scale() transform
+      // the scroll-reveal directive applies for the zoom effect. Using the
+      // transformed rect here would compute a target that doesn't match
+      // where CSS scroll-snap-align actually anchors, so the native snap
+      // silently corrects to a different (often earlier) stage once it
+      // re-engages after the animation.
+      const sectionCenter = this.documentOffsetTop(section) + section.offsetHeight / 2;
 
-      if (center > viewportCenter + 50)
+      if (sectionCenter > currentCenter + 50)
       {
-        const targetY = window.scrollY + (center - viewportCenter);
-        window.scrollTo({top: targetY, behavior: 'smooth'});
+        this.smoothScrollTo(sectionCenter - viewportCenter);
         return;
       }
     }
 
-    window.scrollBy({top: window.innerHeight, behavior: 'smooth'});
+    // Already at or past every section's center — snap to the last
+    // section's own center rather than overshooting into unsnapped
+    // territory, which mandatory scroll-snap would otherwise correct by
+    // pulling back to an earlier stage once it re-engages.
+    if (sections.length > 0)
+    {
+      const last = sections[sections.length - 1];
+      const lastCenter = this.documentOffsetTop(last) + last.offsetHeight / 2;
+      this.smoothScrollTo(lastCenter - viewportCenter);
+    }
+  }
+
+  private documentOffsetTop(el: HTMLElement): number
+  {
+    let top = 0;
+    let node: HTMLElement | null = el;
+
+    while (node)
+    {
+      top += node.offsetTop;
+      node = node.offsetParent as HTMLElement | null;
+    }
+
+    return top;
   }
 }

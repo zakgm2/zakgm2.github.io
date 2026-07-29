@@ -32,6 +32,11 @@ html:has(body.project-info-active)::-webkit-scrollbar
     display: none;
 }
 
+html:has(body.project-info-active.js-scrolling)
+{
+    scroll-snap-type: none;
+}
+
 body.project-info-active
 {
     scrollbar-width: none;
