@@ -37,6 +37,11 @@ export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
     this.routeDataSubscription?.unsubscribe();
     this.translationSubscription?.unsubscribe();
     document.body.classList.remove('project-info-active');
+    document.body.classList.remove('js-scrolling');
+
+    if (this.smoothScrollTimeoutId !== null) {
+      clearTimeout(this.smoothScrollTimeoutId);
+    }
   }
 
   ngAfterViewInit(): void {
@@ -77,23 +82,27 @@ export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  private smoothScrollTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
   private smoothScrollTo(targetY: number): void {
     // Native scroll-snap can fight a JS-driven smooth scroll and pull the
-    // page back to the previously snapped stage once the animation settles.
-    // Disabling snap for the duration of the animation avoids that fight.
+    // page back to the previously snapped stage once it re-engages. The
+    // 'scrollend' event is unreliable for this on iOS Safari (it can fire
+    // early while combined with a scroll-snap-type change mid-animation,
+    // re-enabling snap before the animation reaches its target and pulling
+    // the page straight back to the stage it started from) so a fixed
+    // timeout long enough to cover the animation is used instead.
+    if (this.smoothScrollTimeoutId !== null) {
+      clearTimeout(this.smoothScrollTimeoutId);
+    }
+
     document.body.classList.add('js-scrolling');
     window.scrollTo({top: targetY, behavior: 'smooth'});
 
-    const reenableSnap = () => {
+    this.smoothScrollTimeoutId = setTimeout(() => {
       document.body.classList.remove('js-scrolling');
-      window.removeEventListener('scrollend', reenableSnap);
-    };
-
-    if ('onscrollend' in window) {
-      window.addEventListener('scrollend', reenableSnap, {once: true});
-    } else {
-      setTimeout(reenableSnap, 700);
-    }
+      this.smoothScrollTimeoutId = null;
+    }, 900);
   }
 
   ngOnInit(): void {
