@@ -83,8 +83,12 @@
     "papers": {
         "bannerText": "Papers",
         "mainHeader": "Lab Reports & Papers",
-        "introDescription": "A selection of lab reports from my physics coursework. All plots and image reconstructions in these reports were generated with my own app, <a href='/projects/physicsanalysisgui' class='unstyledLink'>PhysicsAnalysisGUI</a>.",
+        "introDescription": "A selection of lab reports and research writing from my physics coursework and lab work. Plots and image reconstructions in these reports were generated with my own apps, <a href='/projects/physicsanalysisgui' class='unstyledLink'>PhysicsAnalysisGUI</a> and <a href='/projects/neurodata-interface' class='unstyledLink'>NeuroData-Interface</a>.",
         "downloadButtonText": "Download PDF",
+        "fiberPhotometryLitReview": {
+            "title": "A Platform-Agnostic Framework for Fiber Photometry Preprocessing",
+            "description": "A literature review written for a 12-week research internship in a behavioral neuroscience lab, supervised by Dr. Uri Shalev at Concordia University. Presents NeuroData Interface, an open-source Python framework for preprocessing and visualizing fiber photometry data, including motion correction, deltaF/F transformation, bleaching correction, and peri-event analysis."
+        },
         "efnmrMri": {
             "title": "Earth's Field NMR and MRI of Biological Tissue",
             "description": "Investigated Earth's field nuclear magnetic resonance and 2D spin-echo MRI using the Terranova system, measuring T1/T2 relaxation times in water and a bell pepper and imaging internal tissue structure at multiple resolutions."

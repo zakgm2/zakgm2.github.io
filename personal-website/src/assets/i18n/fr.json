@@ -83,8 +83,12 @@
     "papers": {
         "bannerText": "Articles",
         "mainHeader": "Rapports de Laboratoire et Articles",
-        "introDescription": "Une sélection de rapports de laboratoire issus de mes cours de physique. Tous les graphiques et reconstructions d'images dans ces rapports ont été générés avec ma propre application, <a href='/projects/physicsanalysisgui' class='unstyledLink'>PhysicsAnalysisGUI</a>.",
+        "introDescription": "Une sélection de rapports de laboratoire et de travaux de recherche issus de mes cours de physique et de mon travail en laboratoire. Les graphiques et reconstructions d'images dans ces rapports ont été générés avec mes propres applications, <a href='/projects/physicsanalysisgui' class='unstyledLink'>PhysicsAnalysisGUI</a> et <a href='/projects/neurodata-interface' class='unstyledLink'>NeuroData-Interface</a>.",
         "downloadButtonText": "Télécharger le PDF",
+        "fiberPhotometryLitReview": {
+            "title": "Un Cadre Indépendant de la Plateforme pour le Prétraitement de Photométrie par Fibre",
+            "description": "Une revue de littérature rédigée dans le cadre d'un stage de recherche de 12 semaines dans un laboratoire de neuroscience comportementale, supervisé par le Dr Uri Shalev à l'Université Concordia. Présente NeuroData Interface, un cadre Python à code source ouvert pour le prétraitement et la visualisation des données de photométrie par fibre, incluant la correction de mouvement, la transformation deltaF/F, la correction du blanchiment et l'analyse péri-événementielle."
+        },
         "efnmrMri": {
             "title": "RMN en Champ Terrestre et IRM de Tissus Biologiques",
             "description": "Étude de la résonance magnétique nucléaire en champ terrestre et de l'IRM en écho de spin 2D avec le système Terranova, mesurant les temps de relaxation T1/T2 dans l'eau et un poivron, et imageant la structure interne des tissus à plusieurs résolutions."

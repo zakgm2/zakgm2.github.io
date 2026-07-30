@@ -214,4 +214,35 @@
     {
         font-size: 1.8rem;
     }
+
+    .scrollDownArrow
+    {
+        left: auto;
+        right: 12px;
+        transform: none;
+    }
+
+    @keyframes bounceArrow
+    {
+        0%, 100%
+        {
+            transform: translateY(0);
+        }
+        50%
+        {
+            transform: translateY(12px);
+        }
+    }
+
+    @keyframes bounceArrowUp
+    {
+        0%, 100%
+        {
+            transform: translateY(0);
+        }
+        50%
+        {
+            transform: translateY(-12px);
+        }
+    }
 }

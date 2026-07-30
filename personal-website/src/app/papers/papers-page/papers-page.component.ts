@@ -17,6 +17,11 @@ export class PapersPageComponent implements OnInit, OnDestroy {
 
   items = [
     {
+      titleKey: 'papers.fiberPhotometryLitReview.title',
+      descriptionKey: 'papers.fiberPhotometryLitReview.description',
+      href: 'assets/papers/fibre-photometry-literature-review.pdf'
+    },
+    {
       titleKey: 'papers.efnmrMri.title',
       descriptionKey: 'papers.efnmrMri.description',
       href: 'assets/papers/efnmr-mri-lab-report.pdf'
