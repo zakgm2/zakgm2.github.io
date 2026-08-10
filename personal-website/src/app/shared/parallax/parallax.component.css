@@ -3,17 +3,9 @@
     background-position: center;
     background-repeat: no-repeat;
     background-size: cover;
+    width: 100%;
 
     -moz-box-shadow:    inset 0 0 10px #000000;
     -webkit-box-shadow: inset 0 0 10px #000000;
     box-shadow:         inset 0 0 10px #000000;
-  }
-
-  @media screen and (max-width: 768px) {
-    .parallax
-    {
-      background-size: contain;
-      background-attachment: unset;
-      min-height: 200px !important;
-    }
   }
