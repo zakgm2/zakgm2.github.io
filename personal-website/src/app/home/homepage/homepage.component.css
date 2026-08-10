@@ -1,22 +1,10 @@
 .mainDescParallax
 {
-    /* Scales continuously with viewport width at every size (not just
-       below a breakpoint) so it shrinks smoothly instead of jumping.
-       Capped at 320px, its original fixed size, so wide/desktop
-       viewports render identically to before this was made fluid. */
-    width: clamp(90px, 34vw, 320px);
+    width: 320px;
     overflow: hidden;
 }
 
-.leftSideParagraphs .descriptionParagraph
-{
-    /* All three About Me paragraphs share this same fluid scale, in sync
-       with the photo shrinking beside them, right up until the row
-       switches to a stacked layout below. */
-    font-size: clamp(12px, 2.6vw, 18px);
-}
-
-@media screen and (max-width: 480px)
+@media screen and (max-width: 768px)
 {
     .mainDescriptionParagraphs
     {
@@ -31,6 +19,6 @@
 
     .mainDescParallax
     {
-        width: clamp(160px, 55vw, 260px);
+        width: 260px;
     }
 }
