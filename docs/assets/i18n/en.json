@@ -20,6 +20,8 @@
         "mainHeader": "Here are some of the projects I've worked on! Click on a project to view its details.",
         "researchToolsHeader": "Research & Tools",
         "featuresHeader": "Features",
+        "downloadWindows": "Download for Windows",
+        "downloadMac": "Download for macOS",
         "template": {
             "projectsPageHeader": "",
             "infoPageHeader": "",

@@ -28,7 +28,9 @@ const routes: Routes = [
     "../../../assets/img/projects/physicsanalysisgui.webp",
     "projects.physicsAnalysisGui",
     "https://github.com/zakgm2/PhysicsAnalysisGUI",
-    ""
+    "",
+    "https://github.com/zakgm2/PhysicsAnalysisGUI/releases/latest/download/PhysicsAnalysis-windows.zip",
+    "https://github.com/zakgm2/PhysicsAnalysisGUI/releases/latest/download/PhysicsAnalysis-macos.zip"
   )},
 
   //NeuroData-Interface

@@ -19,6 +19,8 @@
         "bannerText": "Mes Projets",
         "mainHeader": "Voici quelques-uns des projets sur lesquels j'ai travaillé! Cliquez sur un projet pour afficher ses détails.",
         "researchToolsHeader": "Recherche et Outils",
+        "downloadWindows": "Télécharger pour Windows",
+        "downloadMac": "Télécharger pour macOS",
         "template": {
             "projectsPageHeader": "",
             "infoPageHeader": "",

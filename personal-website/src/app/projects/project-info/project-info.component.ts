@@ -24,6 +24,8 @@ export class ProjectInfoComponent implements OnInit, OnDestroy {
   @Input() btnHref: string = "";
   @Input() btnRouterLink: string = "";
   @Input() translationKey: string="";
+  @Input() downloadWindowsUrl: string = "";
+  @Input() downloadMacUrl: string = "";
 
   routeDataSubscription: Subscription | null = null;
   translationSubscription: Subscription | null = null;
@@ -237,6 +239,16 @@ export class ProjectInfoComponent implements OnInit, OnDestroy {
         if (d["translationKey"])
         {
           this.translationKey = d["translationKey"];
+        }
+
+        if (d["downloadWindowsUrl"])
+        {
+          this.downloadWindowsUrl = d["downloadWindowsUrl"];
+        }
+
+        if (d["downloadMacUrl"])
+        {
+          this.downloadMacUrl = d["downloadMacUrl"];
         }
       })
 

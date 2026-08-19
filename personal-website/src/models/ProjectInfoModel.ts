@@ -4,16 +4,22 @@ export default class ProjectInfoModel
     translationKey: string="";
     btnHref: string = "";
     btnRouterLink: string = "";
+    downloadWindowsUrl: string = "";
+    downloadMacUrl: string = "";
 
     constructor(
-        backgroundImageSource: string = "", 
+        backgroundImageSource: string = "",
         translationKey: string="",
         btnHref: string = "",
-        btnRouterLink: string = "")
+        btnRouterLink: string = "",
+        downloadWindowsUrl: string = "",
+        downloadMacUrl: string = "")
     {
         this.backgroundImageSource = backgroundImageSource;
-        this.translationKey = translationKey; 
+        this.translationKey = translationKey;
         this.btnHref = btnHref;
         this.btnRouterLink = btnRouterLink;
+        this.downloadWindowsUrl = downloadWindowsUrl;
+        this.downloadMacUrl = downloadMacUrl;
     }
 }

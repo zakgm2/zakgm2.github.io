@@ -160,6 +160,45 @@
     margin-right: auto;
 }
 
+.downloadButtonRow
+{
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 30px;
+}
+
+.downloadButton
+{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 24px;
+    border: 2px solid #dc3545;
+    border-radius: 8px;
+    color: white;
+    background-color: rgba(20,20,20,0.6);
+    text-decoration: none;
+    font-size: 17px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.downloadButton:hover
+{
+    background-color: #dc3545;
+    color: white;
+}
+
+.downloadIcon
+{
+    width: 22px;
+    height: 22px;
+    fill: currentColor;
+    flex-shrink: 0;
+}
+
+
 .stageSection
 {
     min-height: 100vh;
@@ -213,6 +252,12 @@
     .stageTitle
     {
         font-size: 1.8rem;
+    }
+
+    .downloadButtonRow
+    {
+        flex-direction: column;
+        align-items: center;
     }
 
     .scrollDownArrow
