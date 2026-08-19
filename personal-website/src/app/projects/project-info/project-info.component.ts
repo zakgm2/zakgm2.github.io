@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnDestroy, ChangeDetectionStrategy, HostListener } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, AfterViewInit, HostListener, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { LangChangeEvent, TranslateService } from '@ngx-translate/core';
@@ -12,7 +12,7 @@ import TitleHelper from '../../../helpers/TitleHelper';
     changeDetection: ChangeDetectionStrategy.Eager,
     standalone: false
 })
-export class ProjectInfoComponent implements OnInit, OnDestroy {
+export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
 
   @Input() backgroundImageSource: string = "";
   @Input() header: string = "Header text";
@@ -26,182 +26,89 @@ export class ProjectInfoComponent implements OnInit, OnDestroy {
   @Input() translationKey: string="";
   @Input() downloadWindowsUrl: string = "";
   @Input() downloadMacUrl: string = "";
+  @Input() downloadStatsRepo: string = "";
+
+  totalDownloads: string | null = null;
 
   routeDataSubscription: Subscription | null = null;
   translationSubscription: Subscription | null = null;
 
-  // -1 = intro/hero, 0..N-1 = a stage. Native scroll/swipe input is blocked
-  // on multi-stage pages (see onWheel/onTouchEnd) so this index is always
-  // the single source of truth for where we are — we never need to infer
-  // position from live scroll math, which is what made the old
-  // scroll-driven implementation fragile on iOS Safari.
-  currentStageIndex: number = -1;
-  private isAnimating: boolean = false;
-  private animFrameId: number | null = null;
-  private animSafetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  private touchStartY: number = 0;
+  // Scrolling is completely normal/native on this page — the arrow is just
+  // a convenience shortcut, not the only way to move. atLastStage is
+  // recalculated from the live scroll position (see onWindowScroll) rather
+  // than tracked as owned state, since the user can scroll freely at any
+  // time and that state would otherwise drift out of sync.
+  atLastStage: boolean = false;
 
-  constructor(private route: ActivatedRoute, private titleService: Title,private translateService: TranslateService) {
+  constructor(private route: ActivatedRoute, private titleService: Title,private translateService: TranslateService, private cdr: ChangeDetectorRef) {
 
    }
   ngOnDestroy(): void {
     this.routeDataSubscription?.unsubscribe();
     this.translationSubscription?.unsubscribe();
     document.body.classList.remove('project-info-active');
+  }
 
-    if (this.animFrameId !== null) {
-      cancelAnimationFrame(this.animFrameId);
+  ngAfterViewInit(): void {
+    setTimeout(() => this.updateAtLastStage());
+  }
+
+  @HostListener('window:scroll')
+  @HostListener('window:resize')
+  onWindowScroll(): void {
+    this.updateAtLastStage();
+  }
+
+  private updateAtLastStage(): void {
+    const sections = document.querySelectorAll('.stageSection');
+
+    if (sections.length <= 1) {
+      this.atLastStage = false;
+      return;
     }
 
-    if (this.animSafetyTimeoutId !== null) {
-      clearTimeout(this.animSafetyTimeoutId);
-    }
+    const last = sections[sections.length - 1] as HTMLElement;
+    const viewportCenter = window.innerHeight / 2;
+    const lastCenter = this.documentOffsetTop(last) + last.offsetHeight / 2;
+    const currentCenter = window.scrollY + viewportCenter;
+
+    this.atLastStage = lastCenter <= currentCenter + 50;
   }
 
   get hasMultipleStages(): boolean {
     return this.flatFeatures.length > 1;
   }
 
-  get atLastStage(): boolean {
-    return this.currentStageIndex === this.flatFeatures.length - 1;
-  }
-
   onArrowClick(): void {
     if (this.atLastStage) {
-      this.goToStage(-1);
+      window.scrollTo({top: 0, behavior: 'smooth'});
     } else {
-      this.goToStage(this.currentStageIndex + 1);
+      this.scrollToNext();
     }
   }
 
-  @HostListener('window:wheel', ['$event'])
-  onWheel(event: WheelEvent): void {
-    if (!this.hasMultipleStages) return;
-    event.preventDefault();
+  private scrollToNext(): void {
+    const sections = Array.from(document.querySelectorAll('.stageSection')) as HTMLElement[];
+    const viewportCenter = window.innerHeight / 2;
+    const currentCenter = window.scrollY + viewportCenter;
 
-    if (this.isAnimating) return;
+    for (const section of sections) {
+      // offsetTop/offsetHeight reflect layout geometry only, unlike
+      // getBoundingClientRect() which includes the live scale() transform
+      // the scroll-reveal directive applies for its zoom effect.
+      const sectionCenter = this.documentOffsetTop(section) + section.offsetHeight / 2;
 
-    if (event.deltaY > 0) {
-      this.onArrowClick();
-    } else if (event.deltaY < 0) {
-      this.goToStage(this.currentStageIndex - 1);
-    }
-  }
-
-  @HostListener('window:touchstart', ['$event'])
-  onTouchStart(event: TouchEvent): void {
-    if (!this.hasMultipleStages) return;
-    this.touchStartY = event.touches[0].clientY;
-  }
-
-  @HostListener('window:touchmove', ['$event'])
-  onTouchMove(event: TouchEvent): void {
-    if (!this.hasMultipleStages) return;
-    event.preventDefault();
-  }
-
-  @HostListener('window:touchend', ['$event'])
-  onTouchEnd(event: TouchEvent): void {
-    if (!this.hasMultipleStages) return;
-    if (this.isAnimating) return;
-
-    const deltaY = this.touchStartY - event.changedTouches[0].clientY;
-    const swipeThreshold = 30;
-
-    if (Math.abs(deltaY) < swipeThreshold) return;
-
-    if (deltaY > 0) {
-      this.onArrowClick();
-    } else {
-      this.goToStage(this.currentStageIndex - 1);
-    }
-  }
-
-  private goToStage(index: number): void {
-    const clamped = Math.max(-1, Math.min(index, this.flatFeatures.length - 1));
-    if (clamped === this.currentStageIndex) return;
-
-    // Compute the target BEFORE touching any state. If this throws (e.g. the
-    // DOM section lookup momentarily fails), isAnimating never gets set and
-    // can't get stuck locked — a previous version set isAnimating = true
-    // before this call, and an exception here would skip the setTimeout
-    // that resets it, permanently blocking all future wheel/touch input.
-    const targetY = this.computeTargetYForIndex(clamped);
-    if (targetY === null) return;
-
-    this.currentStageIndex = clamped;
-    this.isAnimating = true;
-
-    window.scrollTo({top: targetY, behavior: 'smooth'});
-    this.watchForScrollSettle();
-  }
-
-  // A fixed timeout for "animation done" is a guess that doesn't match how
-  // long a real device's smooth-scroll actually takes (varies with distance
-  // and device speed) — guess too short and a new gesture can fire mid
-  // animation, racing with it. Instead, poll scrollY each frame and only
-  // release the lock once it's stopped moving for a few consecutive frames.
-  private watchForScrollSettle(): void {
-    if (this.animFrameId !== null) {
-      cancelAnimationFrame(this.animFrameId);
-    }
-    if (this.animSafetyTimeoutId !== null) {
-      clearTimeout(this.animSafetyTimeoutId);
-    }
-
-    let lastY = window.scrollY;
-    let stableFrames = 0;
-
-    const check = () => {
-      const y = window.scrollY;
-
-      if (Math.abs(y - lastY) < 0.5) {
-        stableFrames++;
-      } else {
-        stableFrames = 0;
-      }
-
-      lastY = y;
-
-      if (stableFrames >= 4) {
-        this.finishAnimating();
+      if (sectionCenter > currentCenter + 50) {
+        window.scrollTo({top: sectionCenter - viewportCenter, behavior: 'smooth'});
         return;
       }
-
-      this.animFrameId = requestAnimationFrame(check);
-    };
-
-    this.animFrameId = requestAnimationFrame(check);
-
-    // Safety net in case something prevents the settle check from ever
-    // resolving (should not happen, but must never leave input locked out).
-    this.animSafetyTimeoutId = setTimeout(() => this.finishAnimating(), 2500);
-  }
-
-  private finishAnimating(): void {
-    this.isAnimating = false;
-
-    if (this.animFrameId !== null) {
-      cancelAnimationFrame(this.animFrameId);
-      this.animFrameId = null;
     }
 
-    if (this.animSafetyTimeoutId !== null) {
-      clearTimeout(this.animSafetyTimeoutId);
-      this.animSafetyTimeoutId = null;
+    if (sections.length > 0) {
+      const last = sections[sections.length - 1];
+      const lastCenter = this.documentOffsetTop(last) + last.offsetHeight / 2;
+      window.scrollTo({top: lastCenter - viewportCenter, behavior: 'smooth'});
     }
-  }
-
-  private computeTargetYForIndex(index: number): number | null {
-    if (index < 0) return 0;
-
-    const sections = document.querySelectorAll('.stageSection');
-    const section = sections[index] as HTMLElement | undefined;
-    if (!section) return null;
-
-    const viewportCenter = window.innerHeight / 2;
-
-    return this.documentOffsetTop(section) + section.offsetHeight / 2 - viewportCenter;
   }
 
   private documentOffsetTop(el: HTMLElement): number {
@@ -214,6 +121,41 @@ export class ProjectInfoComponent implements OnInit, OnDestroy {
     }
 
     return top;
+  }
+
+  private fetchDownloadCount(): void {
+    fetch(`https://api.github.com/repos/${this.downloadStatsRepo}/releases?per_page=100`)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then((releases: {assets: {download_count: number}[]}[]) => {
+        const total = releases.reduce(
+          (sum, release) => sum + release.assets.reduce((s, a) => s + a.download_count, 0),
+          0
+        );
+        this.totalDownloads = this.formatDownloadCount(total);
+        // fetch() runs outside Angular's change-detection tracking, so the
+        // view needs to be told explicitly that state changed here.
+        this.cdr.markForCheck();
+      })
+      .catch(() => {
+        // Rate-limited, offline, etc. — just don't show a count rather than
+        // showing a broken/zero one.
+        this.totalDownloads = null;
+        this.cdr.markForCheck();
+      });
+  }
+
+  private formatDownloadCount(n: number): string {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+
+    if (n >= 1_000) {
+      const kValue = (n / 1_000).toFixed(1);
+      // toFixed rounding can push a value like 999,999 to "1000.0" — bump it
+      // up to the M tier rather than displaying the nonsensical "1000.0K".
+      if (kValue === '1000.0') return (n / 1_000_000).toFixed(1) + 'M';
+      return kValue + 'K';
+    }
+
+    return n.toString();
   }
 
   ngOnInit(): void {
@@ -249,6 +191,12 @@ export class ProjectInfoComponent implements OnInit, OnDestroy {
         if (d["downloadMacUrl"])
         {
           this.downloadMacUrl = d["downloadMacUrl"];
+        }
+
+        if (d["downloadStatsRepo"])
+        {
+          this.downloadStatsRepo = d["downloadStatsRepo"];
+          this.fetchDownloadCount();
         }
       })
 

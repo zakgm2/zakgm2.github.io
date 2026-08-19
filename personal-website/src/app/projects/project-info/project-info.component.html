@@ -19,7 +19,7 @@
       </div>
     }
 
-    <div class="container projectInfoContent" style="max-width: 65%; padding-top: 40px; padding-bottom: 150px;">
+    <div class="container projectInfoContent" style="max-width: 65%; padding-top: 10px; padding-bottom: 150px;">
 
         <div class="introText" appScrollReveal>
             <p class="descriptionParagraph" [innerHTML]="description"></p>
@@ -39,25 +39,22 @@
                     </a>
                   }
               </div>
+
+              @if (totalDownloads !== null) {
+                <p class="downloadCount">{{'projects.downloadCount' | translate:{count: totalDownloads} }}</p>
+              }
             }
 
-            @if (flatFeatures.length === 0) {
-              <div style="margin-top: 30px;">
-                  <app-main-button-href [text]="btnText" [href]="btnHref"></app-main-button-href>
-              </div>
-            }
+            <div style="margin-top: 20px;">
+                <app-main-button-href [text]="btnText" [href]="btnHref"></app-main-button-href>
+            </div>
         </div>
 
-        @for (feature of flatFeatures; track feature.title; let isLast = $last) {
+        @for (feature of flatFeatures; track feature.title) {
           <div class="stageSection" appScrollStage>
             <h2 class="stageTitle colorAccent">{{feature.title}}</h2>
             @if (feature.description) {
               <p class="stageDescription" [innerHTML]="feature.description"></p>
-            }
-            @if (isLast) {
-              <div style="margin-top: 30px;">
-                  <app-main-button-href [text]="btnText" [href]="btnHref"></app-main-button-href>
-              </div>
             }
           </div>
         }

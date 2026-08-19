@@ -22,6 +22,7 @@
         "featuresHeader": "Features",
         "downloadWindows": "Download for Windows",
         "downloadMac": "Download for macOS",
+        "downloadCount": "{{count}} downloads",
         "template": {
             "projectsPageHeader": "",
             "infoPageHeader": "",

@@ -21,6 +21,7 @@
         "researchToolsHeader": "Recherche et Outils",
         "downloadWindows": "Télécharger pour Windows",
         "downloadMac": "Télécharger pour macOS",
+        "downloadCount": "{{count}} téléchargements",
         "template": {
             "projectsPageHeader": "",
             "infoPageHeader": "",

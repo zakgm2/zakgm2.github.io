@@ -23,28 +23,6 @@ body
     overflow-x: hidden;
 }
 
-html:has(body.project-info-active)
-{
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-}
-
-html:has(body.project-info-active)::-webkit-scrollbar
-{
-    display: none;
-}
-
-body.project-info-active
-{
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-}
-
-body.project-info-active::-webkit-scrollbar
-{
-    display: none;
-}
-
 .thinHeader
 {
     font-weight: 300;

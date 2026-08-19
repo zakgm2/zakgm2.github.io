@@ -41,7 +41,7 @@
 {
     position: relative;
     z-index: 2;
-    height: 420px;
+    height: 300px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -166,7 +166,16 @@
     justify-content: center;
     gap: 20px;
     flex-wrap: wrap;
-    margin-top: 30px;
+    margin-top: 18px;
+}
+
+.downloadCount
+{
+    text-align: center;
+    color: lightgray;
+    font-size: 14px;
+    margin-top: 12px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.9);
 }
 
 .downloadButton
