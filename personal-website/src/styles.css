@@ -23,6 +23,79 @@ body
     overflow-x: hidden;
 }
 
+/* The Buy Me a Coffee widget (see index.html) is loaded once globally,
+   since its script relies on document.write() and can't be dynamically
+   injected/removed per-route like the rest of the app's SPA content
+   without breaking. Hidden via CSS instead, reusing the body class
+   ProjectInfoComponent already toggles for its own full-viewport layout,
+   so it only shows on pages other than individual project detail pages.
+   The widget's own source writes a plain <div class="bmc-btn-container">
+   at the position of its <script> tag (not a fixed/floating widget, and
+   not carrying the id="bmc-button" the data-name attribute might suggest
+   — that attribute is only used to look the script tag back up). */
+body.project-info-active .bmc-btn-container
+{
+    display: none !important;
+}
+
+.bmc-btn-container
+{
+    /* This widget can't actually live inside the Angular-rendered footer
+       (see the comment above) — it always renders as the next sibling
+       after all of app-root's content, i.e. directly below the footer. */
+    display: flex !important;
+    justify-content: center !important;
+    padding: 0 10% !important;
+}
+
+@media screen and (min-width: 577px)
+{
+    .bmc-btn-container
+    {
+        /* Pulling it up by the exact footer bottom-padding (30px) plus
+           half its own height (24px of its fixed 48px) puts its center
+           in line with .footerContent's row, which is fixed to the same
+           48px height specifically so this number stays exact. Only
+           applied above the footer's own mobile breakpoint, since below
+           that the footer stacks into two lines instead of one row and
+           this fixed offset would no longer line up with anything. */
+        margin-top: -78px !important;
+    }
+}
+
+.bmc-btn,
+.bmc-btn *
+{
+    /* The site's global `* { color: white }` rule matches the widget's own
+       child elements directly, which beats their inherited black text no
+       matter how important/specific the widget's own CSS is — a direct
+       match always wins over inheritance. Needs an explicit override. */
+    color: #000000 !important;
+}
+
+.bmc-btn
+{
+    min-width: unset !important;
+    height: 48px !important;
+    padding: 0 18px !important;
+    border: 2px solid rgb(217, 255, 46) !important;
+}
+
+.bmc-btn-text
+{
+    font-size: 25px !important;
+}
+
+.bmc-btn svg,
+.bmc-btn svg *
+{
+    /* Same direct-match-beats-inheritance issue as above, but for
+       background: the global dark background rule paints behind the
+       widget's own coffee-cup SVG, which — combined with its dark
+       outline fill — would otherwise render as a solid dark blob. */
+    background-color: transparent !important;
+}
+
 .thinHeader
 {
     font-weight: 300;

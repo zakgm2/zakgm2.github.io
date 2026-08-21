@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { NavigationEnd } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
@@ -14,7 +14,13 @@ import LocalStorageHelper from './../helpers/LocalStorageHelper';
 export class AppComponent implements OnInit{
   title = 'personal-website';
 
-  constructor(private router: Router, public translate: TranslateService) 
+  // The footer is hidden on individual project detail pages
+  // (/projects/xyz) since those already use their own full-viewport
+  // background/scroll layout — it stays on every other page, including
+  // the /projects listing itself.
+  showFooter = true;
+
+  constructor(private router: Router, public translate: TranslateService, private cdr: ChangeDetectorRef)
   {
       translate.addLangs(['en', 'fr']);
 
@@ -28,9 +34,17 @@ export class AppComponent implements OnInit{
         //@ts-ignore
         translate.use("en");
       }
+
+      this.router.events.subscribe(event => {
+        if (event instanceof NavigationEnd)
+        {
+          this.showFooter = !event.urlAfterRedirects.startsWith('/projects/');
+          this.cdr.markForCheck();
+        }
+      });
    }
 
-  ngOnInit() 
+  ngOnInit()
   {
 
   }

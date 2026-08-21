@@ -4,6 +4,7 @@ import { BrowserModule, Title } from '@angular/platform-browser';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { NavbarComponent } from './shared/navbar/navbar.component';
+import { FooterComponent } from './shared/footer/footer.component';
 import { TriangularBannerComponent } from './shared/triangular-banner/triangular-banner.component';
 import { HomepageComponent } from './home/homepage/homepage.component';
 import { ParallaxComponent } from './shared/parallax/parallax.component';
@@ -31,6 +32,7 @@ export function HttpLoaderFactory(http: HttpClient)
 @NgModule({ declarations: [
         AppComponent,
         NavbarComponent,
+        FooterComponent,
         TriangularBannerComponent,
         HomepageComponent,
         ParallaxComponent,

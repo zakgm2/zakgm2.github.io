@@ -1,0 +1,78 @@
+.siteFooter
+{
+    width: 100%;
+    padding: 30px 10%;
+    border-top: 2px solid #dc3545;
+}
+
+.footerContent
+{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    max-width: 100%;
+    /* Fixed so the Buy Me a Coffee widget below (see styles.css) can be
+       pulled up by an exact, known amount to visually align with this row. */
+    min-height: 48px;
+}
+
+.footerLeft
+{
+    text-align: left;
+}
+
+.footerText
+{
+    color: lightgray;
+    font-size: 14px;
+    margin: 0;
+}
+
+.footerLocation
+{
+    color: gray;
+    margin-top: 4px;
+}
+
+.footerRight
+{
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.footerIconLink
+{
+    display: inline-flex;
+    align-items: center;
+    color: lightgray;
+}
+
+.footerIconLink:hover
+{
+    color: #ff5c5c;
+}
+
+.footerIcon
+{
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+}
+
+@media screen and (max-width: 576px)
+{
+    .footerContent
+    {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .footerLeft
+    {
+        text-align: center;
+    }
+}

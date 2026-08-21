@@ -15,6 +15,9 @@
         "workWithMeButton": "Work with me?",
         "technologiesDescription": "Throughout the development of my projects, I have become familiar with the following technologies:"
     },
+    "footer": {
+        "location": "Montreal, QC, Canada"
+    },
     "projects": {
         "bannerText": "My Projects",
         "mainHeader": "Here are some of the projects I've worked on! Click on a project to view its details.",
