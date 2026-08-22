@@ -1,0 +1,604 @@
+<h1>PhysicsLibrary API Reference</h1>
+<p>Data processing and analysis library for TDT fibre-photometry, Oxysoft
+NIRS, Terranova EFNMR, generic tabular data, and text-field studies.
+Everything below is importable directly off the top-level package:</p>
+<pre><code class="language-python">import PhysicsLibrary as pl
+pl.process_tdt_folder(folder_path)
+</code></pre>
+<p>Install: <code>pip install ZaksPhysicsLibrary</code></p>
+<hr>
+<h2>Contents</h2>
+<ul>
+<li><p><a href="#loading-data">Loading Data</a></p>
+</li>
+<li><p><a href="#tdt-photometry-processing">TDT Photometry Processing</a></p>
+</li>
+<li><p><a href="#signal-analysis">Signal Analysis</a></p>
+<ul>
+<li><a href="#general-helpers">General helpers</a></li>
+<li><a href="#z-score--event-triggered-analysis">Z-score / event-triggered analysis</a></li>
+<li><a href="#fft">FFT</a></li>
+<li><a href="#curve-fitting">Curve fitting</a></li>
+<li><a href="#peak-detection">Peak detection</a></li>
+<li><a href="#area-under-the-curve">Area under the curve</a></li>
+<li><a href="#peri-event-statistics">Peri-event statistics</a></li>
+</ul>
+</li>
+<li><p><a href="#non-destructive-splicing">Non-destructive splicing</a></p>
+</li>
+<li><p><a href="#curve-fit-models">Curve-fit models</a></p>
+</li>
+<li><p><a href="#text-field-study">Text Field Study</a></p>
+</li>
+<li><p><a href="#text-field-study--statistical-validation">Text Field Study — Statistical Validation</a></p>
+</li>
+<li><p><a href="#optional-dependencies">Optional dependencies</a></p>
+</li>
+</ul>
+<hr>
+<h2>Loading Data</h2>
+<p>Everything here returns a <code>Dataset</code> — a universal container regardless of
+source format — except <code>load_any_file</code> (tabular files, which can hold
+several independent tables) and <code>load_pt2</code> (a raw image array).</p>
+<h3><code>Dataset</code></h3>
+<p>The struct every loader returns:</p>
+<pre><code class="language-python">@dataclass
+class Dataset:
+    source_format: str          # &#39;TDT&#39; | &#39;Oxysoft&#39;
+    folder_path:   str
+    folder_name:   str
+
+    sample_rate: float = 0.0    # Hz
+    num_samples: int   = 0
+    duration_s:  float = 0.0    # seconds
+
+    signals: Optional[np.ndarray] = None   # shape (num_channels, num_samples)
+
+    channel_names: list[str] = field(default_factory=list)
+    num_channels:  int       = 0
+
+    events: list[dict] = field(default_factory=list)   # {&#39;label&#39;: str, &#39;sample&#39;: int}
+    metadata: dict = field(default_factory=dict)        # format-specific raw header blob
+</code></pre>
+<h3><code>DataFormat</code></h3>
+<p><code>Enum</code> with members <code>TDT</code>, <code>OXYSOFT</code>, <code>UNKNOWN</code>.</p>
+<h3><code>detect_format(folder_path: str) -&gt; DataFormat</code></h3>
+<p>Inspects a folder&#39;s contents and returns the matching format. TDT is
+checked first (proprietary extensions), then Oxysoft (<code>.txt</code> marker).</p>
+<h3><code>detect_format_file(file_path: str) -&gt; DataFormat</code></h3>
+<p>Same, for a single file rather than a folder. Currently only recognizes
+Oxysoft <code>.txt</code> exports.</p>
+<h3><code>load_dataset(folder_path, fmt=None, regression_method=&quot;ransac&quot;) -&gt; Dataset</code></h3>
+<p>Top-level dispatcher — detects the format (unless <code>fmt</code> is given
+explicitly) and routes to the matching loader.</p>
+<ul>
+<li><code>regression_method</code> (<code>&quot;ransac&quot; | &quot;huber&quot; | &quot;ols&quot;</code>): TDT-only, forwarded
+to the motion-correction step (see <a href="#process_tdt_folderfolder_path-regression_methodransac"><code>process_tdt_folder</code></a>). Ignored for Oxysoft, which has no
+such correction step.</li>
+</ul>
+<h3><code>load_dataset_file(file_path: str) -&gt; Dataset</code></h3>
+<p>Loads a single file (rather than a folder) into a <code>Dataset</code>. Currently
+supports Oxysoft <code>.txt</code> exports.</p>
+<h3><code>load_any_file(path: str) -&gt; list[GenericTable]</code></h3>
+<p>Best-effort parser for arbitrary tabular data — <code>.xlsx</code>/<code>.xls</code> (needs
+<code>openpyxl</code>), <code>.csv</code>, <code>.tsv</code>, or <code>.txt</code>/<code>.dat</code> with a sniffed delimiter.
+Detects <strong>multiple independent sub-tables</strong> within one sheet/file (laid
+out side-by-side or stacked, separated by empty rows/columns) and
+returns each as its own table so a caller can pick which one to use.
+Raises <code>ValueError</code> if nothing usable is found.</p>
+<p>Each result is a <code>GenericTable</code>:</p>
+<pre><code class="language-python">@dataclass
+class GenericTable:
+    name:     str
+    headers:  list[str]
+    data:     np.ndarray   # (n_rows, n_cols) float64, NaN for missing
+    metadata: dict = field(default_factory=dict)
+</code></pre>
+<h3><code>load_pt2(path: str) -&gt; np.ndarray</code></h3>
+<p>Parses a Terranova/Prospa <code>.pt2</code> 2D NMR/MRI image file (magnitude image
+stored as little-endian float32 after a <code>LAER</code> marker). Returns a 2D
+<code>(n, n)</code> float32 array.</p>
+<blockquote>
+<p><code>load_oxysoft</code>/<code>load_oxysoft_file</code>/<code>load_tdt</code> exist as the actual
+per-format parsers behind <code>load_dataset</code>, but aren&#39;t re-exported at
+the top level — reach them via <code>load_dataset</code>/<code>load_dataset_file</code>
+unless you specifically need to bypass format auto-detection.</p>
+</blockquote>
+<hr>
+<h2>TDT Photometry Processing</h2>
+<h3><code>process_tdt_folder(folder_path, regression_method=&quot;ransac&quot;)</code></h3>
+<p>The full photometry pipeline, and the main TDT entry point: load block →
+extract 465nm signal (+ optional 415nm isosbestic reference) → motion
+correction → bleaching correction → ΔF/F → denoise → event markers.</p>
+<ul>
+<li><code>regression_method</code> (<code>&quot;ransac&quot; | &quot;huber&quot; | &quot;ols&quot;</code>, see
+<a href="#regression_methods"><code>REGRESSION_METHODS</code></a> below) — which regression the
+isosbestic-vs-signal motion correction uses.</li>
+</ul>
+<p><strong>Returns</strong> <code>dict</code>:</p>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>x</code></td>
+<td>time vector</td>
+</tr>
+<tr>
+<td><code>raw</code></td>
+<td>corrected fluorescence signal</td>
+</tr>
+<tr>
+<td><code>corr</code> / <code>dff</code></td>
+<td>final ΔF/F (denoised) — <code>dff</code> is an alias for <code>corr</code></td>
+</tr>
+<tr>
+<td><code>f0</code></td>
+<td>bleaching baseline</td>
+</tr>
+<tr>
+<td><code>fs</code></td>
+<td>sampling frequency</td>
+</tr>
+<tr>
+<td><code>store</code></td>
+<td>signal label</td>
+</tr>
+<tr>
+<td><code>markers</code></td>
+<td>behavioral event markers (see <a href="#get_event_markersdata"><code>get_event_markers</code></a>)</td>
+</tr>
+<tr>
+<td><code>channels</code></td>
+<td><code>[{&quot;key&quot;, &quot;label&quot;, &quot;y&quot;}, ...]</code> — raw, un-corrected per-wavelength streams (<code>main_driver</code>, plus <code>isosbestic</code> if a 415 reference exists)</td>
+</tr>
+<tr>
+<td><code>motion_correction_inlier_fraction</code></td>
+<td>fraction (0–1) of samples kept as inliers during motion correction, or <code>None</code> if there was no 415 reference stream</td>
+</tr>
+</tbody></table>
+<h3><code>REGRESSION_METHODS</code></h3>
+<pre><code class="language-python">REGRESSION_METHODS = (&quot;ransac&quot;, &quot;huber&quot;, &quot;ols&quot;)
+</code></pre>
+<p>The three motion-correction regressions <code>process_tdt_folder</code>/<code>load_dataset</code>
+accept:</p>
+<ul>
+<li><strong><code>ransac</code></strong> <em>(default)</em> — fits to random small subsets, keeps whichever
+gets the most points within a residual threshold, refits on just those
+inliers. Excludes artifact points from the fit entirely rather than
+downweighting them — the right call for occasional, severe artifacts
+(a fiber-cord twist, a brief motion burst).</li>
+<li><strong><code>huber</code></strong> — every point stays in the fit, but points beyond a
+residual threshold get down-weighted instead of excluded. Gentler than
+RANSAC&#39;s hard cut; better suited to noise elevated throughout the
+recording rather than concentrated in a few bad stretches.</li>
+<li><strong><code>ols</code></strong> — plain least-squares, no robustness at all. A baseline for
+comparison, not recommended for real motion correction.</li>
+</ul>
+<h3><code>validate_tdt_folder(path) -&gt; (bool, str)</code></h3>
+<p>Checks whether a directory contains a valid TDT recording block. Returns
+<code>(True, folder_name)</code> if valid, <code>(False, error_message)</code> if not.</p>
+<h3><code>get_tdt_struct(path)</code></h3>
+<p>Loads the raw TDT block (streams, epocs, scalars) via the <code>tdt</code> SDK.
+Handles a real SDK bug around epoc stores with mismatched onset/offset
+counts by reading each epoc store with its own fresh call rather than
+all at once.</p>
+<h3><code>get_plot_data(data, store_name, channel=0, max_points=None) -&gt; (time, signal, fs)</code></h3>
+<p>Extracts one stream&#39;s time series from a loaded TDT struct, with
+optional downsampling.</p>
+<h3><code>correct_bleaching(y, fs) -&gt; (corrected, trend)</code></h3>
+<p>Estimates and removes the photobleaching trend via masked curve fitting.</p>
+<h3><code>denoise_signal(signal, fs, cutoff=5, order=2)</code></h3>
+<p>Low-pass Butterworth filter for ΔF/F signals.</p>
+<h3><code>get_event_markers(data) -&gt; list[dict]</code></h3>
+<p>Extracts behavioral event markers from every populated TDT epoc store
+(auto-discovered — nothing about store names is hardcoded). Each onset
+and offset becomes its own marker (<code>phase</code>: <code>&quot;high&quot;</code>/<code>&quot;low&quot;</code>), except the
+<code>Note</code> store (instantaneous, text-labeled, no offset) and <code>Tick</code> (TDT&#39;s
+own 1-second heartbeat, skipped entirely — not a real event).</p>
+<p><strong>Returns</strong> list of <code>{&quot;time&quot;, &quot;label&quot;, &quot;color&quot;, &quot;store&quot;, &quot;phase&quot;}</code>
+(<code>phase</code> omitted for <code>Note</code> markers).</p>
+<h3><code>debounce_events(times, min_isi) -&gt; list[float]</code></h3>
+<p>Collapses switch-bounce/double-tap duplicate timestamps — drops any
+event within <code>min_isi</code> seconds of the last <em>kept</em> event. Independent of
+any fixed schedule; a <code>min_isi</code> below the subject&#39;s real max event rate
+leaves genuinely fast consecutive events intact.</p>
+<hr>
+<h2>Signal Analysis</h2>
+<h3>General helpers</h3>
+<h4><code>estimate_sample_rate(time_array) -&gt; float</code></h4>
+<p>Sample rate (Hz) from a timestamp array, via the <strong>median</strong> inter-sample
+interval — robust to one irregular gap skewing a naive
+<code>1/(t[1]-t[0])</code> estimate.</p>
+<h4><code>mean_channels(arr) -&gt; np.ndarray</code></h4>
+<p>Collapses a multi-channel <code>(n_channels, n_samples)</code> array to its
+across-channel mean (e.g. Oxysoft&#39;s per-detector o2hb/hhb/thb). A no-op
+if <code>arr</code> is already 1D.</p>
+<h4><code>compute_group_stats(trial_matrix) -&gt; (mean_trace, sem_trace)</code></h4>
+<p>Mean + SEM across trials (rows) of a trial × time matrix. <code>sem_trace</code> is
+all zeros for fewer than 2 trials (SEM with ddof=1 is undefined below
+that); <code>mean_trace</code> is all zeros for 0 trials.</p>
+<h4><code>compute_marker_intervals(markers) -&gt; list[dict]</code></h4>
+<p>Time-since-previous-marker, two ways, for a list of markers from any
+source (TDT epocs, Oxysoft events, manual). Each marker needs at least
+<code>time</code>/<code>label</code> keys (<code>store</code> falls back to <code>label</code>, <code>phase</code> optional).</p>
+<p><strong>Returns</strong> one dict per marker: <code>{&quot;time&quot;, &quot;store&quot;, &quot;label&quot;, &quot;phase&quot;, &quot;dt_store&quot;, &quot;dt_global&quot;}</code> — <code>dt_store</code> is the interval since that
+store&#39;s last event (for a high/low pair, a low marker&#39;s <code>dt_store</code> <em>is</em>
+its on-duration); <code>dt_global</code> is the interval since whatever marker came
+immediately before it, regardless of store. Both are <code>None</code> for the
+first event in their sequence.</p>
+<h4><code>smooth_signal(data, fs, window_sec=0.5)</code></h4>
+<p>Moving-average smoothing filter.</p>
+<h4><code>bin_for_heatmap(z_seg, num_bins=300)</code></h4>
+<p>Bins a signal into <code>num_bins</code> equal segments, for heatmap plotting.</p>
+<h3>Z-score / event-triggered analysis</h3>
+<h4><code>get_zscore_slice(time_array, signal, center_t, window=None, pre=None, post=None) -&gt; (time_segment, z_scored_signal)</code></h4>
+<p>Extracts and z-scores a window around one event time. Accepts either a
+symmetric <code>window</code> (split evenly) or an asymmetric <code>pre</code>/<code>post</code> pair
+(<code>pre</code>/<code>post</code> take precedence if both are given).</p>
+<h4><code>compute_event_zscore_peth(time_array, signal, event_times, pre, post, num_bins=300) -&gt; dict</code></h4>
+<p>Z-scores and aligns <strong>every occurrence</strong> of one event type into a
+trial × time matrix (GuPPy-style), for a stacked-heatmap + trial-average
+view — as opposed to a single click-triggered PETH. Each trial is
+z-scored independently against its own pre-event baseline, then
+resampled onto a shared <code>num_bins</code>-point relative-time axis so trials
+with slightly different raw sample counts can still stack into one
+matrix.</p>
+<p><strong>Returns</strong> <code>dict</code>:</p>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>time_axis</code></td>
+<td><code>(num_bins,)</code>, relative time from <code>-pre</code> to <code>+post</code></td>
+</tr>
+<tr>
+<td><code>trial_matrix</code></td>
+<td><code>(n_valid_trials, num_bins)</code></td>
+</tr>
+<tr>
+<td><code>trial_event_times</code></td>
+<td>the <code>event_times</code> that produced a usable trial (too-close-to-recording-edge events are skipped)</td>
+</tr>
+<tr>
+<td><code>mean_trace</code> / <code>sem_trace</code></td>
+<td><code>(num_bins,)</code> each</td>
+</tr>
+</tbody></table>
+<h3>FFT</h3>
+<h4><code>compute_fft_slice(time_array, signal, center_t, fs, window=None, pre=None, post=None) -&gt; (freqs, power, seg_x, seg_y)</code></h4>
+<p>Extracts a window around <code>center_t</code> and computes its FFT, after mean
+removal + linear detrending (eliminates the DC spike/slow drift so
+physiological frequencies — breathing ~0.3Hz, heart rate ~1Hz — are
+visible). Same symmetric-<code>window</code>-vs-asymmetric-<code>pre</code>/<code>post</code> convention
+as <code>get_zscore_slice</code>.</p>
+<h4><code>find_fft_peaks(freqs, power, n_peaks=3) -&gt; list[dict]</code></h4>
+<p>Top-N peaks in a power spectrum, as data. Returns
+<code>[{&quot;freq_hz&quot;, &quot;power&quot;, &quot;bpm&quot;}, ...]</code> sorted by power descending — empty
+if fewer than 3 usable frequency bins (≥0.05Hz) exist or nothing clears
+the prominence bar.</p>
+<h4><code>annotate_fft_peaks(ax_f, freqs, power, color, n_peaks=3)</code></h4>
+<p>Same peak-finding as <code>find_fft_peaks</code>, but draws frequency/BPM labels
+directly onto a matplotlib <code>Axes</code>.</p>
+<h3>Curve fitting</h3>
+<h4><code>compute_slope_segment(x_data, y_data, p1_idx, p2_idx, padding_pct=0.05) -&gt; dict</code></h4>
+<p>Least-squares linear regression slope between two index boundaries.
+Returns <code>{&quot;slope&quot;, &quot;intercept&quot;, &quot;crop_x&quot;, &quot;crop_y&quot;, &quot;x1&quot;, &quot;y1&quot;, &quot;x2&quot;, &quot;y2&quot;}</code>.</p>
+<h4><code>fit_model_to_segment(x_seg, y_seg, model_fn, p0_fn) -&gt; dict</code></h4>
+<p>Fits <code>model_fn</code> (signature <code>f(x, *params) -&gt; y</code>, see
+<a href="#curve-fit-models">Curve-fit models</a>) to a segment via <code>scipy.optimize.curve_fit</code>,
+with <code>p0_fn(x_seg, y_seg) -&gt; initial_guesses</code> supplying the starting
+parameters. Returns <code>{&quot;popt&quot;, &quot;y_fit&quot;, &quot;r2&quot;, &quot;success&quot;, &quot;error&quot;}</code>.</p>
+<h3>Peak detection</h3>
+<h4><code>find_significant_peaks(time_array, signal, z_threshold=2.5, min_distance_sec=1.0, include_troughs=False) -&gt; list[dict]</code></h4>
+<p>Auto-detects statistically significant transients directly from the
+signal — instead of trusting that externally-supplied event markers
+actually line up with real activity. Z-scores the whole recording
+against its own global mean/std (not per-event), then <code>scipy.signal.find_peaks</code>
+picks local maxima at or above <code>z_threshold</code>, at least <code>min_distance_sec</code>
+apart. <code>include_troughs</code> also detects significant negative deflections
+(off by default).</p>
+<p><strong>Returns</strong> <code>[{&quot;time&quot;, &quot;z_score&quot;, &quot;kind&quot;: &quot;peak&quot;|&quot;trough&quot;}, ...]</code>, sorted
+by time.</p>
+<h4><code>find_peak_near_events(time_array, signal, event_times, pre, post, z_threshold=2.5, include_troughs=False) -&gt; list[dict]</code></h4>
+<p>Checks whether a significant peak actually shows up near each given
+event time (baselined the same way as <code>get_zscore_slice</code>, i.e. relative
+to that event&#39;s own local baseline — not the whole recording). Works for
+one event or many occurrences of the same type.</p>
+<p><strong>Returns</strong> one dict per <code>event_time</code> (same order):
+<code>{&quot;event_time&quot;, &quot;found&quot;, &quot;peak_time&quot;, &quot;latency&quot;, &quot;z_score&quot;, &quot;kind&quot;}</code> —
+<code>found</code> is <code>False</code> (with the rest <code>None</code>) if the window was unusable or
+nothing cleared <code>z_threshold</code>.</p>
+<h3>Area under the curve</h3>
+<h4><code>compute_auc_from_trace(x, y) -&gt; dict</code></h4>
+<p>Trapezoidal AUC, split by sign — the shared core <code>compute_auc_window</code>
+and <code>compute_auc_matrix</code> both delegate to. <code>positive_auc</code> integrates
+only where <code>y &gt;= 0</code>; <code>negative_auc</code> integrates only where <code>y &lt;= 0</code> and
+is itself signed (≤ 0, not an absolute value); <code>total_auc</code> is their sum
+(equivalent to the plain net signed integral).</p>
+<p><strong>Returns</strong> <code>{&quot;total_auc&quot;, &quot;positive_auc&quot;, &quot;negative_auc&quot;}</code> — all zero
+if fewer than 2 points.</p>
+<h4><code>compute_auc_window(time_array, signal, center_t, pre, post) -&gt; dict</code></h4>
+<p>Slices a pre/post window around an event and integrates it (same
+windowing convention as <code>get_zscore_slice</code>). Deliberately does <strong>not</strong>
+z-score first — AUC quantifies the signal in its own (already
+dF/F-normalized) units. Returns <code>{&quot;seg_x&quot;, &quot;seg_y&quot;, &quot;total_auc&quot;, &quot;positive_auc&quot;, &quot;negative_auc&quot;}</code>.</p>
+<h4><code>compute_auc_matrix(time_axis, trial_matrix) -&gt; dict</code></h4>
+<p>Per-trial + group AUC for a trial × time matrix (see
+<code>compute_event_zscore_peth</code>). Returns <code>{&quot;per_trial&quot;: [...], &quot;group&quot;: {...}}</code>
+— <code>per_trial</code> one entry per row (same order), <code>group</code> computed on the
+matrix&#39;s mean trace.</p>
+<h3>Peri-event statistics</h3>
+<h4><code>compute_peri_event_from_trace(rel_x, y, post, bin_width=1.0) -&gt; dict</code></h4>
+<p>Peak amplitude, latency (time-to-peak), and mean-time-bins from an
+already event-relative trace (<code>rel_x</code>: 0 = event time). Peak/latency are
+post-event only (<code>rel_x &gt;= 0</code> — a pre-event sample can&#39;t be a response),
+using signed <code>argmax(|y|)</code> so a strong inhibitory (negative-going)
+response is captured correctly, not just the largest positive value.</p>
+<p><strong>Returns</strong> <code>{&quot;peak_amplitude&quot;, &quot;latency&quot;, &quot;mean_bins&quot;}</code> — <code>mean_bins</code> is
+a list of <code>{&quot;bin_start&quot;, &quot;bin_end&quot;, &quot;mean&quot;}</code> covering <code>[0, post]</code> in
+<code>bin_width</code>-second chunks (last bin truncated, not dropped, if <code>post</code>
+isn&#39;t evenly divisible).</p>
+<h4><code>compute_peri_event_matrix(time_axis, trial_matrix, post, bin_width=1.0) -&gt; dict</code></h4>
+<p>Per-trial + group version of the above, mirroring <code>compute_auc_matrix</code>.
+Returns <code>{&quot;per_trial&quot;: [...], &quot;group&quot;: {...}}</code>, each entry
+<code>{&quot;peak_amplitude&quot;, &quot;latency&quot;, &quot;mean_bins&quot;}</code>.</p>
+<hr>
+<h2>Non-destructive splicing</h2>
+<p>Both functions work on 1D arrays <em>and</em> 2D <code>(n_channels, n_samples)</code>
+arrays via <code>extra_channels</code> (sliced along the last axis) — so Oxysoft&#39;s
+multi-detector data splices exactly like TDT&#39;s single-channel data, no
+special-casing needed by the caller.</p>
+<h3><code>splice_keep_inside(x, raw, corr, markers, detected_markers, start, end, extra_channels=None) -&gt; dict | None</code></h3>
+<p>Trims <code>x</code>/<code>raw</code>/<code>corr</code> to <code>[start, end]</code>, filters both marker lists to
+the same range. <code>extra_channels</code> (optional): any other same-length
+arrays that need trimming identically — e.g. TDT&#39;s raw per-wavelength
+channels, or Oxysoft&#39;s <code>(n_detectors, n_samples)</code> arrays.</p>
+<p><strong>Returns</strong> <code>{&quot;x&quot;, &quot;raw&quot;, &quot;corr&quot;, &quot;markers&quot;, &quot;detected_markers&quot;, &quot;n_samples&quot;, &quot;extra_channels&quot;}</code> (copies, not views), or <code>None</code> if the
+range doesn&#39;t contain at least 2 samples. Marker timestamps stay
+absolute (not re-zeroed).</p>
+<h3><code>splice_cut_out(x, raw, corr, markers, detected_markers, start, end, extra_channels=None) -&gt; dict | None</code></h3>
+<p>Removes <code>[start, end]</code> and stitches the remainder together, shifting
+everything after the cut backward by the cut&#39;s duration so the timeline
+stays contiguous. Markers inside the cut are dropped; markers after it
+are shifted by the same amount. Same <code>extra_channels</code> support as above.</p>
+<p><strong>Returns</strong> same shape as <code>splice_keep_inside</code>, or <code>None</code> if there isn&#39;t
+usable signal on both sides of the cut to stitch together.</p>
+<hr>
+<h2>Curve-fit models</h2>
+<p>All follow <code>f(x, *params) -&gt; y</code>, ready to pass straight into
+<code>fit_model_to_segment</code>.</p>
+<table>
+<thead>
+<tr>
+<th>function</th>
+<th>formula</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>linear_model(x, m, b)</code></td>
+<td><code>y = m*x + b</code></td>
+</tr>
+<tr>
+<td><code>single_exponential_model(x, a, b, c)</code></td>
+<td><code>y = a*exp(-b*x) + c</code></td>
+</tr>
+<tr>
+<td><code>double_exponential_model(x, a, b, c, d, k)</code></td>
+<td><code>y = a*exp(-b*x) + c*exp(-d*x) + k</code> — physical bleaching model</td>
+</tr>
+<tr>
+<td><code>exponential_rise_model(x, a, b, c)</code></td>
+<td><code>y = a*(1 - exp(-b*x)) + c</code> — e.g. venous occlusion</td>
+</tr>
+<tr>
+<td><code>gaussian_model(x, a, mu, sigma)</code></td>
+<td><code>y = a*exp(-(x-mu)^2 / (2*sigma^2))</code></td>
+</tr>
+<tr>
+<td><code>sinusoidal_model(x, a, f, phi, c)</code></td>
+<td><code>y = a*sin(2*pi*f*x + phi) + c</code></td>
+</tr>
+<tr>
+<td><code>visibility_model(beta, a, v, beta_c, period)</code></td>
+<td><code>y = (a/2) * (1 - v*sin((beta - beta_c) / period))</code> — photon-entanglement visibility</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Text Field Study</h2>
+<p>A pipeline for comparing free-text survey/response fields across
+subjects via sentence-embedding similarity — e.g. &quot;did this subject&#39;s
+answer to field A resemble their answer to field B more than chance
+pairing would predict?&quot; Needs the optional <code>sentence-transformers</code>
+package (see <a href="#optional-dependencies">Optional dependencies</a>).</p>
+<h3><code>run_field_study_pipeline(folder_path, text_fields, delta_pair=None, paired_fields=None, model_name=&quot;all-MiniLM-L6-v2&quot;, n_null=200, rng_seed=None, file_glob=&quot;P-*.json&quot;, min_words=5) -&gt; pandas.DataFrame</code></h3>
+<p>The single entry point — runs the whole pipeline (load → flag
+low-quality → embed → optional delta vector → optional paired
+similarity + permutation test + word-count confound check) and folds
+everything into one DataFrame, one row per subject.</p>
+<ul>
+<li><code>delta_pair</code> (<code>(field_from, field_to)</code>, optional): adds a
+<code>delta_magnitude</code> column — <code>‖vec(field_to) - vec(field_from)‖</code>.</li>
+<li><code>paired_fields</code> (<code>[(field_a, field_b, pair_name), ...]</code>, optional):
+adds per pair <code>sim_&lt;name&gt;</code>, <code>null_mean_&lt;name&gt;</code>, <code>null_std_&lt;name&gt;</code>,
+<code>pvalue_&lt;name&gt;</code>/<code>effect_size_&lt;name&gt;</code> (permutation test), and
+<code>wc_confound_r_&lt;name&gt;</code>/<code>wc_confound_p_&lt;name&gt;</code> (word-count confound
+check). The test-level values repeat identically across every row for
+that pair — one number per pair, not per subject.</li>
+</ul>
+<p>The stage functions below are also available individually for anyone
+who wants an intermediate result.</p>
+<h3><code>load_field_study_folder(folder_path, text_fields, file_glob=&quot;P-*.json&quot;) -&gt; pandas.DataFrame</code></h3>
+<p>Loads every file matching <code>file_glob</code> into one row-per-subject
+DataFrame, adding a <code>wordcount_&lt;field&gt;</code> column per text field.</p>
+<h3><code>peek_fields(folder_path, file_glob=&quot;P-*.json&quot;) -&gt; list[str]</code></h3>
+<p>Field names (dict keys) found in the <em>first</em> matching file, without
+loading the whole folder — for a GUI to show real field names to pick
+from rather than requiring them typed blind.</p>
+<h3><code>flag_low_quality(df, text_fields, min_words=5) -&gt; pandas.DataFrame</code></h3>
+<p>Flags (doesn&#39;t drop) near-empty responses. Adds <code>low_quality_&lt;field&gt;</code>
+per field and <code>any_low_quality</code> (OR across fields). Must run after
+<code>load_field_study_folder</code> (needs the <code>wordcount_&lt;field&gt;</code> columns).</p>
+<h3><code>embed_text_fields(df, fields, model_name=&quot;all-MiniLM-L6-v2&quot;) -&gt; dict</code></h3>
+<p>Embeds each field with a <code>sentence-transformers</code> model, L2-normalized
+(so a plain dot product is cosine similarity). Returns
+<code>{field: (n_subjects, dim) ndarray, ...}</code>. Raises a clear <code>ImportError</code>
+with an install hint if <code>sentence-transformers</code> isn&#39;t installed.</p>
+<h3><code>compute_delta_vector(embeddings, field_from, field_to) -&gt; (delta_vectors, delta_magnitude)</code></h3>
+<p>Per-subject <code>vec(field_to) - vec(field_from)</code>, plus its magnitude.</p>
+<h3><code>compute_paired_similarity(embeddings, paired_fields, n_null=200, rng_seed=None) -&gt; dict</code></h3>
+<p>Cosine similarity between each field pair for the same subject, plus a
+null distribution built by repeatedly shuffling one field&#39;s vectors
+across subjects. Returns, per pair name:</p>
+<pre><code class="language-python">{
+    &#39;same_subject_similarity&#39;: ndarray,   # (n_subjects,)
+    &#39;null_mean&#39;: float, &#39;null_std&#39;: float,
+    &#39;null_values&#39;: ndarray,               # (n_null * n_subjects,), pooled
+    &#39;null_shuffle_means&#39;: ndarray,        # (n_null,) — the actual null
+                                           # distribution for testing the MEAN
+}
+</code></pre>
+<h3><code>permutation_test_similarity(same_subject_similarity, null_shuffle_means) -&gt; dict</code></h3>
+<p>One-tailed permutation test: is observed mean same-subject similarity
+higher than chance pairing? Returns <code>{&quot;observed_mean_similarity&quot;, &quot;p_value&quot;, &quot;effect_size&quot;, &quot;null_shuffle_mean&quot;, &quot;null_shuffle_std&quot;}</code>.</p>
+<h3><code>wordcount_confound_check(df, paired_fields) -&gt; dict</code></h3>
+<p>Pearson correlation between each pair&#39;s combined word count and its
+similarity, across subjects — a significant positive correlation would
+mean &quot;longer answers just look more similar,&quot; undercutting a similarity
+claim. Returns <code>{pair_name: {&quot;r&quot;, &quot;p_value&quot;}, ...}</code> (both <code>NaN</code> if fewer
+than 2 subjects or word count has no variance).</p>
+<hr>
+<h2>Text Field Study — Statistical Validation</h2>
+<p>A companion module that stress-tests a Text Field Study result: is the
+similarity real, or could it be a word-count artifact, a single outlier
+subject, or noise that wouldn&#39;t survive multiple-comparisons correction?</p>
+<h3><code>run_validation_pipeline(folder_path, text_fields, paired_fields, model_name=&quot;all-MiniLM-L6-v2&quot;, n_null=200, n_boot=1000, rng_seed=None, file_glob=&quot;P-*.json&quot;, id_field=&quot;participant_id&quot;) -&gt; pandas.DataFrame</code></h3>
+<p>Full validation pipeline: load → embed → paired similarity → build the
+summary table below. Self-contained (recomputes embeddings rather than
+reusing a prior <code>run_field_study_pipeline</code> call). <code>paired_fields</code> is
+required here — there&#39;s nothing to validate without at least one pair.</p>
+<h3><code>build_validation_summary(df, paired_fields, similarity_results, id_field=&quot;participant_id&quot;, n_boot=1000, rng_seed=None) -&gt; pandas.DataFrame</code></h3>
+<p>One row per field pair:</p>
+<table>
+<thead>
+<tr>
+<th>column</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>pair</code>, <code>field_a</code>, <code>field_b</code></td>
+<td>which fields</td>
+</tr>
+<tr>
+<td><code>observed_mean_similarity</code></td>
+<td>mean same-subject similarity</td>
+</tr>
+<tr>
+<td><code>p_value</code></td>
+<td>permutation-test p-value (one-tailed)</td>
+</tr>
+<tr>
+<td><code>p_value_fdr</code></td>
+<td><strong>use this one</strong>, not raw <code>p_value</code> — Benjamini-Hochberg corrected across all pairs in the table</td>
+</tr>
+<tr>
+<td><code>cohens_d</code></td>
+<td>effect size vs. the pooled chance-pairing null</td>
+</tr>
+<tr>
+<td><code>wc_coef_a</code>/<code>wc_pvalue_a</code>, <code>wc_coef_b</code>/<code>wc_pvalue_b</code></td>
+<td>word-count regression coefficient/p-value per field, controlling for the other — significant means part of the effect may just be verbosity</td>
+</tr>
+<tr>
+<td><code>regression_r_squared</code></td>
+<td>variance in similarity explained by both word counts (low = reassuring)</td>
+</tr>
+<tr>
+<td><code>ci_lower</code>, <code>ci_upper</code></td>
+<td>bootstrap 95% CI on <code>observed_mean_similarity</code></td>
+</tr>
+<tr>
+<td><code>n_flagged_loo</code></td>
+<td>subjects flagged by leave-one-out sensitivity (0 is reassuring)</td>
+</tr>
+<tr>
+<td><code>flagged_participant_ids</code></td>
+<td>which ones</td>
+</tr>
+</tbody></table>
+<h3><code>cohens_d(group1, group2) -&gt; float</code></h3>
+<p>Standardized mean difference between two distributions (pooled std
+units) — rough guide ~0.2 small, ~0.5 medium, ~0.8 large. Typically
+called with <code>group1</code> = same-subject similarities, <code>group2</code> = pooled
+null similarities.</p>
+<h3><code>benjamini_hochberg(p_values) -&gt; ndarray</code></h3>
+<p>False-discovery-rate correction across multiple hypothesis tests — less
+conservative than Bonferroni while still controlling the <em>expected
+proportion</em> of false positives among results called significant.
+Returns corrected p-values (&quot;q-values&quot;), same order as input.</p>
+<h3><code>wordcount_controlled_regression(df, field_a, field_b, sim_col) -&gt; dict</code></h3>
+<p>OLS regression: <code>similarity ~ wordcount_&lt;field_a&gt; + wordcount_&lt;field_b&gt;</code>.
+Tests whether either field&#39;s length predicts similarity independent of
+the other. <strong>Requires <code>statsmodels</code></strong> (hard import, no fallback).
+Returns <code>{&quot;r_squared&quot;, &quot;coef_const&quot;, &quot;coef_wordcount_&lt;field_a&gt;&quot;, &quot;coef_wordcount_&lt;field_b&gt;&quot;, &quot;pvalue_const&quot;, &quot;pvalue_wordcount_&lt;field_a&gt;&quot;, &quot;pvalue_wordcount_&lt;field_b&gt;&quot;, &quot;model&quot;}</code> (<code>model</code> is the full
+<code>statsmodels</code> <code>RegressionResults</code> object).</p>
+<h3><code>bootstrap_mean_ci(values, n_boot=1000, ci=0.95, rng_seed=None) -&gt; dict</code></h3>
+<p>Bootstrap confidence interval on the mean (resample with replacement,
+<code>n_boot</code> times) — doesn&#39;t assume normality, unlike a textbook
+<code>mean ± 1.96·SE</code> interval. Returns <code>{&quot;mean&quot;, &quot;ci_lower&quot;, &quot;ci_upper&quot;, &quot;boot_means&quot;}</code>.</p>
+<h3><code>leave_one_out_sensitivity(values, ids=None) -&gt; dict</code></h3>
+<p>Recomputes the mean with each subject dropped one at a time; flags any
+subject whose removal shifts the mean by more than one standard
+deviation of the resulting leave-one-out-means distribution. Catches a
+single subject quietly dominating the result. A flagged subject isn&#39;t
+automatically wrong/excludable — it&#39;s worth a manual look.</p>
+<p><strong>Returns</strong> <code>{&quot;full_mean&quot;, &quot;loo_means&quot;, &quot;shifts&quot;, &quot;threshold&quot;, &quot;flagged_ids&quot;}</code>.</p>
+<hr>
+<h2>Optional dependencies</h2>
+<p><code>numpy</code>, <code>scipy</code>, <code>pandas</code>, <code>tdt</code>, and <code>scikit-learn</code> are regular,
+required dependencies (installed automatically by
+<code>pip install ZaksPhysicsLibrary</code>) — <code>scikit-learn</code> in particular backs
+<em>all</em> of <code>process_tdt_folder</code>&#39;s regression methods including <code>&quot;ols&quot;</code>,
+since <code>processing_TDT.py</code> imports it unconditionally at module level,
+not just when RANSAC/Huber are actually selected.</p>
+<p>The two below are genuinely soft — each has a guarded import that fails
+with a clear, actionable message instead of crashing obscurely, rather
+than being unavailable outright:</p>
+<table>
+<thead>
+<tr>
+<th>package</th>
+<th>needed for</th>
+<th>behavior if missing</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>openpyxl</code></td>
+<td><code>load_any_file</code> on <code>.xlsx</code>/<code>.xls</code></td>
+<td><code>ImportError</code> at call time: &quot;Install openpyxl to read .xlsx files: pip install openpyxl&quot;</td>
+</tr>
+<tr>
+<td><code>sentence-transformers</code></td>
+<td><code>embed_text_fields</code> (and everything downstream: <code>compute_delta_vector</code>, <code>compute_paired_similarity</code>, <code>permutation_test_similarity</code>, <code>wordcount_confound_check</code>, <code>run_field_study_pipeline</code>, <code>run_validation_pipeline</code>, <code>build_validation_summary</code>)</td>
+<td><code>ImportError</code> with an install hint (<code>pip install sentence-transformers</code>)</td>
+</tr>
+</tbody></table>
+<p><code>sentence-transformers</code> pulls in <code>torch</code>/<code>transformers</code> (hundreds of MB
+to 1GB+) — it&#39;s actually listed as a normal, unconditional dependency in
+<code>pyproject.toml</code> despite being guarded at the code level like a soft
+one; if you&#39;re building a lightweight install and don&#39;t need Text Field
+Study, it&#39;s worth installing everything else by hand rather than via
+<code>pip install ZaksPhysicsLibrary</code> directly.</p>
+<p><code>statsmodels</code> is also a required <code>pyproject.toml</code> dependency, but
+<code>wordcount_controlled_regression</code> is the <em>only</em> function that actually
+imports it (as a hard, unguarded <code>import</code> inside the function body) — so
+while it&#39;s always installed alongside the package, it&#39;s only ever
+exercised if you call that one function.</p>

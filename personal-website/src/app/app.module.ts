@@ -17,6 +17,7 @@ import { PapersPageComponent } from './papers/papers-page/papers-page.component'
 import { MainButtonComponent } from './shared/main-button/main-button.component';
 import { ZoomCardLinkComponent } from './shared/zoom-card-link/zoom-card-link.component';
 import { ProjectInfoComponent } from './projects/project-info/project-info.component';
+import { ApiReferencePageComponent } from './projects/api-reference-page/api-reference-page.component';
 import { MainButtonHrefComponent } from './shared/main-button-href/main-button-href.component';
 import { ScrollRevealDirective } from './shared/scroll-reveal.directive';
 import { ScrollStageDirective } from './shared/scroll-stage.directive';
@@ -45,6 +46,7 @@ export function HttpLoaderFactory(http: HttpClient)
         MainButtonComponent,
         ZoomCardLinkComponent,
         ProjectInfoComponent,
+        ApiReferencePageComponent,
         MainButtonHrefComponent,
         ScrollRevealDirective,
         ScrollStageDirective

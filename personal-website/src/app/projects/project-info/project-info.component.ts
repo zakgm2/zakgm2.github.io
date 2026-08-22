@@ -27,6 +27,7 @@ export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
   @Input() downloadWindowsUrl: string = "";
   @Input() downloadMacUrl: string = "";
   @Input() downloadStatsRepo: string = "";
+  @Input() docsRouterLink: string = "";
 
   totalDownloads: string | null = null;
 
@@ -197,6 +198,11 @@ export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
         {
           this.downloadStatsRepo = d["downloadStatsRepo"];
           this.fetchDownloadCount();
+        }
+
+        if (d["docsRouterLink"])
+        {
+          this.docsRouterLink = d["docsRouterLink"];
         }
       })
 

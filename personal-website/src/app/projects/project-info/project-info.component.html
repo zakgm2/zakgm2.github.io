@@ -47,6 +47,9 @@
 
             <div style="margin-top: 20px;">
                 <app-main-button-href [text]="btnText" [href]="btnHref"></app-main-button-href>
+                @if (docsRouterLink) {
+                  <app-main-button [routerLink]="docsRouterLink" text="{{'projects.docsButtonText' | translate}}"></app-main-button>
+                }
             </div>
         </div>
 

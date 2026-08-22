@@ -26,6 +26,7 @@
         "downloadWindows": "Download for Windows",
         "downloadMac": "Download for macOS",
         "downloadCount": "{{count}} downloads",
+        "docsButtonText": "API Reference",
         "template": {
             "projectsPageHeader": "",
             "infoPageHeader": "",

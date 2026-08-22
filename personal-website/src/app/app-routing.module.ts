@@ -6,6 +6,7 @@ import { ContactPageComponent } from './contact/contact-page/contact-page.compon
 import { ResearchPageComponent } from './research/research-page/research-page.component';
 import { PapersPageComponent } from './papers/papers-page/papers-page.component';
 import { ProjectInfoComponent } from './projects/project-info/project-info.component';
+import { ApiReferencePageComponent } from './projects/api-reference-page/api-reference-page.component';
 import ProjectInfoModel from '../models/ProjectInfoModel';
 
 const routes: Routes = [
@@ -20,8 +21,15 @@ const routes: Routes = [
     "../../../assets/img/projects/physicslibrary.webp", //Background image
     "projects.physicsLibrary",
     "https://github.com/zakgm2/PhysicsLibrary",
-    ""
+    "",
+    "",
+    "",
+    "",
+    "/projects/physicslibrary/docs"
   )},
+
+  //PhysicsLibrary API Reference
+  {path: "projects/physicslibrary/docs", component: ApiReferencePageComponent},
 
   //PhysicsAnalysisGUI
   {path: "projects/physicsanalysisgui", component: ProjectInfoComponent, data: new ProjectInfoModel(
