@@ -26,6 +26,7 @@
         "downloadMac": "Télécharger pour macOS",
         "downloadCount": "{{count}} téléchargements",
         "docsButtonText": "Référence API",
+        "sendFeedback": "Envoyer des commentaires",
         "template": {
             "projectsPageHeader": "",
             "infoPageHeader": "",
@@ -41,7 +42,7 @@
         "physicsAnalysisGui": {
             "projectsPageHeader": "Python Analysis Tool",
             "infoPageHeader": "Python Analysis Tool",
-            "infoPageDescription": "Une application de bureau PyQt6 pour charger, visualiser et analyser des données de laboratoire en physique, construite sur la logique partagée de <a href='/projects/physicslibrary' class='unstyledLink'>PhysicsLibrary</a>.",
+            "infoPageDescription": "Une application de bureau PyQt6 pour charger, visualiser et analyser des données de laboratoire, avec la prise en charge de nouveaux formats de données ajoutée en continu. Construite sur la logique partagée de <a href='/projects/physicslibrary' class='unstyledLink'>PhysicsLibrary</a>.",
             "infoPageButtonText": "Dépot GitHub",
             "infoPageFeatureGroups": [
                 {

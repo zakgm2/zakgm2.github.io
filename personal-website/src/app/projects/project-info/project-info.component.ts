@@ -29,6 +29,7 @@ export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
   @Input() downloadStatsRepo: string = "";
   @Input() docsRouterLink: string = "";
   @Input() backgroundSize: string = "cover";
+  @Input() feedbackUrl: string = "";
 
   totalDownloads: string | null = null;
 
@@ -209,6 +210,11 @@ export class ProjectInfoComponent implements OnInit, OnDestroy, AfterViewInit {
         if (d["backgroundSize"])
         {
           this.backgroundSize = d["backgroundSize"];
+        }
+
+        if (d["feedbackUrl"])
+        {
+          this.feedbackUrl = d["feedbackUrl"];
         }
       })
 

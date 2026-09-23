@@ -1,1 +1,1 @@
-<a class="btn btn-outline-danger btn-lg m-1" [href]="href">{{text}}</a>
+<a class="siteButton" [href]="href" [attr.target]="newTab ? '_blank' : null" [attr.rel]="newTab ? 'noopener' : null"><ng-content></ng-content><span>{{text}}</span></a>

@@ -12,7 +12,9 @@
           <p class="descriptionParagraph">
               {{item.descriptionKey | translate}}
           </p>
-          <app-main-button-href text="{{'papers.downloadButtonText' | translate}}" [href]="item.href"></app-main-button-href>
+          <app-main-button-href text="{{'papers.downloadButtonText' | translate}}" [href]="item.href">
+              <svg viewBox="0 0 24 24" class="siteIcon siteIconStroke"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg>
+          </app-main-button-href>
       </div>
       @if (!isLast) {
         <div style="margin-top: 60px"></div>

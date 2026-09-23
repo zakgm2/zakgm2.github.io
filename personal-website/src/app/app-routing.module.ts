@@ -42,7 +42,8 @@ const routes: Routes = [
     "zakgm2/PhysicsAnalysisGUI",
     "",
     // The logo is a square; "cover" would zoom it to fill a wide viewport.
-    "contain"
+    "contain",
+    "https://github.com/zakgm2/PhysicsAnalysisGUI/issues"
   )},
 
   //NeuroData-Interface

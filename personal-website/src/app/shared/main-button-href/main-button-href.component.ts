@@ -10,6 +10,7 @@ import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core
 export class MainButtonHrefComponent implements OnInit {
   @Input() href: string=""
   @Input() text:string="Button text"
+  @Input() newTab: boolean = false
   
   constructor() { }
 
