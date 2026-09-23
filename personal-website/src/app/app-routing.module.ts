@@ -33,7 +33,7 @@ const routes: Routes = [
 
   //PhysicsAnalysisGUI
   {path: "projects/physicsanalysisgui", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/physicsanalysisgui.webp",
+    "../../../assets/img/projects/AppIcon-tile.webp",
     "projects.physicsAnalysisGui",
     "https://github.com/zakgm2/PhysicsAnalysisGUI",
     "",
