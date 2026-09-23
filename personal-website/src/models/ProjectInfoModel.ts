@@ -8,6 +8,7 @@ export default class ProjectInfoModel
     downloadMacUrl: string = "";
     downloadStatsRepo: string = "";
     docsRouterLink: string = "";
+    backgroundSize: string = "cover";
 
     constructor(
         backgroundImageSource: string = "",
@@ -17,7 +18,8 @@ export default class ProjectInfoModel
         downloadWindowsUrl: string = "",
         downloadMacUrl: string = "",
         downloadStatsRepo: string = "",
-        docsRouterLink: string = "")
+        docsRouterLink: string = "",
+        backgroundSize: string = "cover")
     {
         this.backgroundImageSource = backgroundImageSource;
         this.translationKey = translationKey;
@@ -27,5 +29,6 @@ export default class ProjectInfoModel
         this.downloadMacUrl = downloadMacUrl;
         this.downloadStatsRepo = downloadStatsRepo;
         this.docsRouterLink = docsRouterLink;
+        this.backgroundSize = backgroundSize;
     }
 }
