@@ -37,8 +37,8 @@ const routes: Routes = [
     "projects.physicsAnalysisGui",
     "https://github.com/zakgm2/PhysicsAnalysisGUI",
     "",
-    "https://github.com/zakgm2/PhysicsAnalysisGUI/releases/latest/download/PhysicsAnalysis-windows.zip",
-    "https://github.com/zakgm2/PhysicsAnalysisGUI/releases/latest/download/PhysicsAnalysis-macos.zip",
+    "https://github.com/zakgm2/PhysicsAnalysis/releases/latest/download/PyAT-windows.zip",
+    "https://github.com/zakgm2/PhysicsAnalysis/releases/latest/download/PyAT-macos.zip",
     "zakgm2/PhysicsAnalysisGUI",
     "",
     // The logo is a square; "cover" would zoom it to fill a wide viewport.
