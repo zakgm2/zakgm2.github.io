@@ -71,7 +71,7 @@
         "neuroDataInterface": {
             "projectsPageHeader": "NeuroData-Interface (v1)",
             "infoPageHeader": "NeuroData-Interface (v1)",
-            "infoPageDescription": "The first version of my data analysis GUI, originally built for Synapse TDT neuroscience data, supporting event marking, epoch analysis, and signal visualization for lab recordings. That work has since evolved into <a href='/projects/physicsanalysisgui' class='unstyledLink'>Python Analysis Tool</a>, a general-purpose tool for all the data analysis and visualization I need across my research.",
+            "infoPageDescription": "The first version of my data analysis GUI, originally built for Synapse TDT neuroscience data, supporting event marking, epoch analysis, and signal visualization for lab recordings. That work has since evolved into <a href='/projects/pyat' class='unstyledLink'>Python Analysis Tool</a>, a general-purpose tool for all the data analysis and visualization I need across my research.",
             "infoPageButtonText": "GitHub Repository"
         }
     },
@@ -91,7 +91,7 @@
     "papers": {
         "bannerText": "Papers",
         "mainHeader": "Lab Reports & Papers",
-        "introDescription": "A selection of lab reports and research writing from my physics coursework and lab work. Plots and image reconstructions in these reports were generated with my own apps, <a href='/projects/physicsanalysisgui' class='unstyledLink'>Python Analysis Tool</a> and <a href='/projects/neurodata-interface' class='unstyledLink'>NeuroData-Interface</a>.",
+        "introDescription": "A selection of lab reports and research writing from my physics coursework and lab work. Plots and image reconstructions in these reports were generated with my own apps, <a href='/projects/pyat' class='unstyledLink'>Python Analysis Tool</a> and <a href='/projects/neurodata-interface' class='unstyledLink'>NeuroData-Interface</a>.",
         "downloadButtonText": "Download PDF",
         "fiberPhotometryLitReview": {
             "title": "A Platform-Agnostic Framework for Fiber Photometry Preprocessing",

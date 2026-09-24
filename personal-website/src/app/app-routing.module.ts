@@ -32,7 +32,7 @@ const routes: Routes = [
   {path: "projects/physicslibrary/docs", component: ApiReferencePageComponent},
 
   //PhysicsAnalysisGUI
-  {path: "projects/physicsanalysisgui", component: ProjectInfoComponent, data: new ProjectInfoModel(
+  {path: "projects/pyat", component: ProjectInfoComponent, data: new ProjectInfoModel(
     "../../../assets/img/projects/AppIcon-tile.webp",
     "projects.physicsAnalysisGui",
     "https://github.com/zakgm2/PhysicsAnalysisGUI",
@@ -45,6 +45,9 @@ const routes: Routes = [
     "contain",
     "https://github.com/zakgm2/PhysicsAnalysisGUI/issues"
   )},
+
+  //Old URL for the Python Analysis Tool page
+  {path: "projects/physicsanalysisgui", redirectTo: "projects/pyat"},
 
   //NeuroData-Interface
   {path: "projects/neurodata-interface", component: ProjectInfoComponent, data: new ProjectInfoModel(

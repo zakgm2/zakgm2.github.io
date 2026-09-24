@@ -70,7 +70,7 @@
         "neuroDataInterface": {
             "projectsPageHeader": "NeuroData-Interface (v1)",
             "infoPageHeader": "NeuroData-Interface (v1)",
-            "infoPageDescription": "La première version de mon interface d'analyse de données, initialement conçue pour les données de neuroscience Synapse TDT, prenant en charge le marquage d'événements, l'analyse par époques et la visualisation des signaux pour les enregistrements de laboratoire. Ce travail a depuis évolué vers <a href='/projects/physicsanalysisgui' class='unstyledLink'>Python Analysis Tool</a>, un outil polyvalent pour toute l'analyse et la visualisation de données dont j'ai besoin dans mes recherches.",
+            "infoPageDescription": "La première version de mon interface d'analyse de données, initialement conçue pour les données de neuroscience Synapse TDT, prenant en charge le marquage d'événements, l'analyse par époques et la visualisation des signaux pour les enregistrements de laboratoire. Ce travail a depuis évolué vers <a href='/projects/pyat' class='unstyledLink'>Python Analysis Tool</a>, un outil polyvalent pour toute l'analyse et la visualisation de données dont j'ai besoin dans mes recherches.",
             "infoPageButtonText": "Dépot GitHub"
         },
         "featuresHeader": "Fonctionnalités"
@@ -91,7 +91,7 @@
     "papers": {
         "bannerText": "Articles",
         "mainHeader": "Rapports de Laboratoire et Articles",
-        "introDescription": "Une sélection de rapports de laboratoire et de travaux de recherche issus de mes cours de physique et de mon travail en laboratoire. Les graphiques et reconstructions d'images dans ces rapports ont été générés avec mes propres applications, <a href='/projects/physicsanalysisgui' class='unstyledLink'>Python Analysis Tool</a> et <a href='/projects/neurodata-interface' class='unstyledLink'>NeuroData-Interface</a>.",
+        "introDescription": "Une sélection de rapports de laboratoire et de travaux de recherche issus de mes cours de physique et de mon travail en laboratoire. Les graphiques et reconstructions d'images dans ces rapports ont été générés avec mes propres applications, <a href='/projects/pyat' class='unstyledLink'>Python Analysis Tool</a> et <a href='/projects/neurodata-interface' class='unstyledLink'>NeuroData-Interface</a>.",
         "downloadButtonText": "Télécharger le PDF",
         "fiberPhotometryLitReview": {
             "title": "Un Cadre Indépendant de la Plateforme pour le Prétraitement de Photométrie par Fibre",
