@@ -230,6 +230,29 @@
         transform: none;
     }
 
+    /* Windows/macOS text labels don't fit two-up on a phone; collapse to
+       small square icon buttons side by side instead of stacking full-width
+       (overriding the global .siteButtonRow mobile stack-to-column rule). */
+    .downloadButtonRow
+    {
+        flex-direction: row;
+        gap: 14px;
+    }
+
+    .downloadButtonRow .siteButton
+    {
+        min-width: 0;
+        width: 52px;
+        height: 52px;
+        padding: 0;
+        gap: 0;
+    }
+
+    .downloadButtonRow .downloadBtnText
+    {
+        display: none;
+    }
+
     @keyframes bounceArrow
     {
         0%, 100%
