@@ -16,24 +16,25 @@ const routes: Routes = [
   {path: 'papers', component: PapersPageComponent},
   {path: 'contact', component: ContactPageComponent},
 
-  //PhysicsLibrary
-  {path: "projects/physicslibrary", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/physicslibrary.webp", //Background image
+  //PyAT CLI (PhysicsLibrary repo)
+  {path: "projects/pyatcli", component: ProjectInfoComponent, data: new ProjectInfoModel(
+    "../../../assets/img/projects/PyATCLI.webp", //Background image
     "projects.physicsLibrary",
     "https://github.com/zakgm2/PhysicsLibrary",
     "",
     "",
     "",
     "",
-    "/projects/physicslibrary/docs"
+    "/projects/pyatcli/docs",
+    "contain"
   )},
 
-  //PhysicsLibrary API Reference
-  {path: "projects/physicslibrary/docs", component: ApiReferencePageComponent},
+  //PyAT CLI (PhysicsLibrary repo) API Reference
+  {path: "projects/pyatcli/docs", component: ApiReferencePageComponent},
 
   //PhysicsAnalysisGUI
   {path: "projects/pyat", component: ProjectInfoComponent, data: new ProjectInfoModel(
-    "../../../assets/img/projects/AppIcon-tile.webp",
+    "../../../assets/img/projects/PyATGUI.webp",
     "projects.physicsAnalysisGui",
     "https://github.com/zakgm2/PhysicsAnalysisGUI",
     "",
@@ -45,6 +46,10 @@ const routes: Routes = [
     "contain",
     "https://github.com/zakgm2/PhysicsAnalysisGUI/issues"
   )},
+
+  //Old PhysicsLibrary URLs
+  {path: "projects/physicslibrary", redirectTo: "projects/pyatcli"},
+  {path: "projects/physicslibrary/docs", redirectTo: "projects/pyatcli/docs"},
 
   //Old URL for the Python Analysis Tool page
   {path: "projects/physicsanalysisgui", redirectTo: "projects/pyat"},

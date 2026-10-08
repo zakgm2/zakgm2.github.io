@@ -35,15 +35,15 @@
             "infoPageButtonText": ""
         },
         "physicsLibrary": {
-            "projectsPageHeader": "PhysicsLibrary",
-            "infoPageHeader": "PhysicsLibrary",
+            "projectsPageHeader": "PyAT CLI",
+            "infoPageHeader": "PyAT CLI",
             "infoPageDescription": "An open-source Python library providing shared analysis and data-processing tools for my physics and neuroscience lab work. Built to keep core logic reusable across multiple lab GUIs and pipelines.",
             "infoPageButtonText": "GitHub Repository"
         },
         "physicsAnalysisGui": {
             "projectsPageHeader": "Python Analysis Tool",
             "infoPageHeader": "Python Analysis Tool",
-            "infoPageDescription": "A PyQt6 desktop application for loading, visualizing, and analyzing lab data, with support for new data formats added continually. Built on shared logic from <a href='/projects/physicslibrary' class='unstyledLink'>PhysicsLibrary</a>.",
+            "infoPageDescription": "A PyQt6 desktop application for loading, visualizing, and analyzing lab data, with support for new data formats added continually. Built on shared logic from <a href='/projects/pyatcli' class='unstyledLink'>PyAT CLI</a>.",
             "infoPageButtonText": "GitHub Repository",
             "infoPageFeatureGroups": [
                 {

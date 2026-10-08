@@ -28,7 +28,7 @@ export class ApiReferencePageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.titleService.setTitle(TitleHelper.concat('PhysicsLibrary API Reference'));
+    this.titleService.setTitle(TitleHelper.concat('PyAT CLI API Reference'));
 
     // Pre-rendered at build time from PhysicsLibrary's own API_REFERENCE.md
     // (see src/assets/docs) rather than parsing markdown client-side, to

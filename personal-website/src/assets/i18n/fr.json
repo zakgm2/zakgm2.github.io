@@ -34,15 +34,15 @@
             "infoPageButtonText": ""
         },
         "physicsLibrary": {
-            "projectsPageHeader": "PhysicsLibrary",
-            "infoPageHeader": "PhysicsLibrary",
+            "projectsPageHeader": "PyAT CLI",
+            "infoPageHeader": "PyAT CLI",
             "infoPageDescription": "Une bibliothèque Python open-source fournissant des outils d'analyse et de traitement de données partagés pour mes travaux en physique et en neuroscience. Conçue pour garder la logique de base réutilisable entre plusieurs interfaces et pipelines de laboratoire.",
             "infoPageButtonText": "Dépot GitHub"
         },
         "physicsAnalysisGui": {
             "projectsPageHeader": "Python Analysis Tool",
             "infoPageHeader": "Python Analysis Tool",
-            "infoPageDescription": "Une application de bureau PyQt6 pour charger, visualiser et analyser des données de laboratoire, avec la prise en charge de nouveaux formats de données ajoutée en continu. Construite sur la logique partagée de <a href='/projects/physicslibrary' class='unstyledLink'>PhysicsLibrary</a>.",
+            "infoPageDescription": "Une application de bureau PyQt6 pour charger, visualiser et analyser des données de laboratoire, avec la prise en charge de nouveaux formats de données ajoutée en continu. Construite sur la logique partagée de <a href='/projects/pyatcli' class='unstyledLink'>PyAT CLI</a>.",
             "infoPageButtonText": "Dépot GitHub",
             "infoPageFeatureGroups": [
                 {
