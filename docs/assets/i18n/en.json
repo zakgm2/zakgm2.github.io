@@ -35,15 +35,15 @@
             "infoPageButtonText": ""
         },
         "physicsLibrary": {
-            "projectsPageHeader": "PyAT CLI",
-            "infoPageHeader": "PyAT CLI",
-            "infoPageDescription": "An open-source Python library providing shared analysis and data-processing tools for my physics and neuroscience lab work. Built to keep core logic reusable across multiple lab GUIs and pipelines.",
+            "projectsPageHeader": "PyATCLI",
+            "infoPageHeader": "PyATCLI",
+            "infoPageDescription": "An open-source Python package, <code>pip install PyATCLI</code>, with the analysis and data-processing tools behind my physics and neuroscience lab work: fibre-photometry, NIRS and tabular loaders, event-triggered and group statistics, a background engine that runs the analyses, and a command line that replays an export from the provenance record saved beside it. It computes and writes numbers; the app draws them. Formerly PhysicsLibrary.",
             "infoPageButtonText": "GitHub Repository"
         },
         "physicsAnalysisGui": {
             "projectsPageHeader": "Python Analysis Tool",
             "infoPageHeader": "Python Analysis Tool",
-            "infoPageDescription": "A PyQt6 desktop application for loading, visualizing, and analyzing lab data, with support for new data formats added continually. Built on shared logic from <a href='/projects/pyatcli' class='unstyledLink'>PyAT CLI</a>.",
+            "infoPageDescription": "A PyQt6 desktop application for loading, visualizing, and analyzing lab data, with support for new data formats added continually. Built on <a href='/projects/pyatcli' class='unstyledLink'>PyATCLI</a>.",
             "infoPageButtonText": "GitHub Repository",
             "infoPageFeatureGroups": [
                 {

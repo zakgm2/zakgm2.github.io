@@ -1,0 +1,1765 @@
+<h1 id="pyatcli-api-reference">PyATCLI API Reference</h1>
+<p>Data processing and analysis library for TDT fibre-photometry, Oxysoft
+NIRS, Terranova EFNMR, generic tabular data, and text-field studies.
+Everything below is importable directly off the top-level package:</p>
+<pre><code class="language-python">import PyATCLI as pl
+pl.process_tdt_folder(folder_path)
+</code></pre>
+<p>Install: <code>pip install PyATCLI</code> (called PhysicsLibrary — PyPI <code>ZaksPhysicsLibrary</code> — before version 2026.10.10: change <code>import PhysicsLibrary</code> to
+<code>import PyATCLI</code>).</p>
+<hr>
+<h2 id="contents">Contents</h2>
+<ul>
+<li><p><a href="#loading-data">Loading Data</a></p>
+</li>
+<li><p><a href="#numeric-precision-float64">Numeric precision (float64)</a></p>
+</li>
+<li><p><a href="#tdt-photometry-processing">TDT Photometry Processing</a></p>
+</li>
+<li><p><a href="#signal-analysis">Signal Analysis</a></p>
+<ul>
+<li><a href="#general-helpers">General helpers</a></li>
+<li><a href="#z-score--event-triggered-analysis">Z-score / event-triggered analysis</a></li>
+<li><a href="#fft">FFT</a></li>
+<li><a href="#curve-fitting">Curve fitting</a></li>
+<li><a href="#peak-detection">Peak detection</a></li>
+<li><a href="#area-under-the-curve">Area under the curve</a></li>
+<li><a href="#peri-event-statistics">Peri-event statistics</a></li>
+</ul>
+</li>
+<li><p><a href="#non-destructive-splicing">Non-destructive splicing</a></p>
+</li>
+<li><p><a href="#recordings-and-saved-state">Recordings and saved state</a></p>
+</li>
+<li><p><a href="#writing-saved-state">Writing saved state</a></p>
+</li>
+<li><p><a href="#output-folders">Output folders</a></p>
+</li>
+<li><p><a href="#markers">Markers</a></p>
+</li>
+<li><p><a href="#group-analysis">Group analysis</a></p>
+</li>
+<li><p><a href="#curve-fit-models">Curve-fit models</a></p>
+</li>
+<li><p><a href="#running-analyses-by-name">Running analyses by name</a></p>
+</li>
+<li><p><a href="#provenance-records">Provenance records</a></p>
+</li>
+<li><p><a href="#reproducing-a-result">Reproducing a result</a></p>
+</li>
+<li><p><a href="#command-line">Command line</a></p>
+</li>
+<li><p><a href="#reading-results-back">Reading results back</a></p>
+</li>
+<li><p><a href="#drawing-results">Drawing results</a></p>
+</li>
+<li><p><a href="#export-views-numbers">Export View&#39;s numbers</a></p>
+</li>
+<li><p><a href="#text-field-study">Text Field Study</a></p>
+</li>
+<li><p><a href="#text-field-study--statistical-validation">Text Field Study — Statistical Validation</a></p>
+</li>
+<li><p><a href="#progress-reporting">Progress reporting</a></p>
+</li>
+<li><p><a href="#optional-dependencies">Optional dependencies</a></p>
+</li>
+</ul>
+<hr>
+<h2 id="loading-data">Loading Data</h2>
+<p>Everything here returns a <code>Dataset</code> — a universal container regardless of
+source format — except <code>load_any_file</code> (tabular files, which can hold
+several independent tables) and <code>load_pt2</code> (a raw image array).</p>
+<h3 id="dataset"><code>Dataset</code></h3>
+<p>The struct every loader returns:</p>
+<pre><code class="language-python">@dataclass
+class Dataset:
+    source_format: str          # &#39;TDT&#39; | &#39;Oxysoft&#39;
+    folder_path:   str
+    folder_name:   str
+
+    sample_rate: float = 0.0    # Hz
+    num_samples: int   = 0
+    duration_s:  float = 0.0    # seconds
+
+    signals: Optional[np.ndarray] = None   # shape (num_channels, num_samples), always float64
+
+    channel_names: list[str] = field(default_factory=list)
+    num_channels:  int       = 0
+
+    events: list[dict] = field(default_factory=list)   # {&#39;label&#39;: str, &#39;sample&#39;: int}
+    metadata: dict = field(default_factory=dict)        # format-specific raw header blob
+</code></pre>
+<h3 id="dataformat"><code>DataFormat</code></h3>
+<p><code>Enum</code> with members <code>TDT</code>, <code>OXYSOFT</code>, <code>UNKNOWN</code>.</p>
+<h3 id="detect_formatfolder_path-str---dataformat"><code>detect_format(folder_path: str) -&gt; DataFormat</code></h3>
+<p>Inspects a folder&#39;s contents and returns the matching format. TDT is
+checked first (proprietary extensions), then Oxysoft (<code>.txt</code> marker).</p>
+<h3 id="detect_format_filefile_path-str---dataformat"><code>detect_format_file(file_path: str) -&gt; DataFormat</code></h3>
+<p>Same, for a single file rather than a folder. Currently only recognizes
+Oxysoft <code>.txt</code> exports.</p>
+<h3 id="load_datasetfolder_path-fmtnone-regression_methodols-progressnone---dataset"><code>load_dataset(folder_path, fmt=None, regression_method=&quot;ols&quot;, progress=None) -&gt; Dataset</code></h3>
+<p>Top-level dispatcher — detects the format (unless <code>fmt</code> is given
+explicitly) and routes to the matching loader.</p>
+<ul>
+<li><code>regression_method</code> (<code>&quot;ransac&quot; | &quot;huber&quot; | &quot;ols&quot;</code>): TDT-only, forwarded
+to the motion-correction step (see <a href="#process_tdt_folderfolder_path-regression_methodols-progressnone"><code>process_tdt_folder</code></a>). Ignored for Oxysoft, which has no
+such correction step.</li>
+</ul>
+<h3 id="load_dataset_filefile_path-str-progressnone---dataset"><code>load_dataset_file(file_path: str, progress=None) -&gt; Dataset</code></h3>
+<p>Loads a single file (rather than a folder) into a <code>Dataset</code>. Currently
+supports Oxysoft <code>.txt</code> exports.</p>
+<h3 id="load_any_filepath-str-progressnone---listgenerictable"><code>load_any_file(path: str, progress=None) -&gt; list[GenericTable]</code></h3>
+<p>Best-effort parser for arbitrary tabular data — <code>.xlsx</code>/<code>.xls</code> (needs
+<code>openpyxl</code>), <code>.csv</code>, <code>.tsv</code>, or <code>.txt</code>/<code>.dat</code> with a sniffed delimiter.
+Detects <strong>multiple independent sub-tables</strong> within one sheet/file (laid
+out side-by-side or stacked, separated by empty rows/columns) and
+returns each as its own table so a caller can pick which one to use.
+Raises <code>ValueError</code> if nothing usable is found.</p>
+<p>Each result is a <code>GenericTable</code>:</p>
+<pre><code class="language-python">@dataclass
+class GenericTable:
+    name:     str
+    headers:  list[str]
+    data:     np.ndarray   # (n_rows, n_cols) float64, NaN for missing
+    metadata: dict = field(default_factory=dict)
+</code></pre>
+<h3 id="load_pt2path-str---npndarray"><code>load_pt2(path: str) -&gt; np.ndarray</code></h3>
+<p>Parses a Terranova/Prospa <code>.pt2</code> 2D NMR/MRI image file (magnitude image
+stored as little-endian float32 after a <code>LAER</code> marker). Returns a 2D
+<code>(n, n)</code> float64 array (widened on the way out, like every load — see
+<a href="#numeric-precision-float64">Numeric precision</a>).</p>
+<blockquote>
+<p><code>load_oxysoft</code>/<code>load_oxysoft_file</code>/<code>load_tdt</code> (in <code>sources/load.py</code>) are the thin
+wrappers behind <code>load_dataset</code> that package a reader&#39;s result into a
+<code>Dataset</code>; they aren&#39;t re-exported at the top level — reach them via
+<code>load_dataset</code>/<code>load_dataset_file</code> unless you specifically need to bypass
+format auto-detection. The readers they wrap are public: <code>process_tdt_folder</code>
+(see <a href="#tdt-photometry-processing">TDT Photometry Processing</a>) and the two
+Oxysoft ones below.</p>
+</blockquote>
+<h3 id="process_oxysoft_folderfolder_path-progressnone---dict"><code>process_oxysoft_folder(folder_path, progress=None) -&gt; dict</code></h3>
+<h3 id="process_oxysoft_filefile_path-progressnone---dict"><code>process_oxysoft_file(file_path, progress=None) -&gt; dict</code></h3>
+<p><code>sources/processing_oxysoft.py</code> is Oxysoft&#39;s counterpart of <code>sources/processing_TDT.py</code>: it
+reads the export (the Legend block maps columns to channels; then the numeric
+rows, the event column and the fit factor), and <code>load_dataset</code> /
+<code>load_dataset_file</code> only wrap the result into a <code>Dataset</code>. Use these directly
+when you want the arrays without one. The folder version concatenates every
+<code>.txt</code> in it in alphabetical order (<code>FileNotFoundError</code> if there is none);
+the file version raises <code>ValueError</code> naming the file if no O2Hb channel is
+recognised in its Legend.</p>
+<p><strong>Returns</strong> <code>dict</code>:</p>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>o2hb</code>, <code>hhb</code></td>
+<td><code>(n_channels, n_samples)</code> float64, channels in label order (<code>Tx1</code>, <code>Tx2</code>, ...)</td>
+</tr>
+<tr>
+<td><code>events</code></td>
+<td><code>[{&quot;label&quot;, &quot;sample&quot;}, ...]</code>: the event column&#39;s code as text (<code>&quot;1&quot;</code>, <code>&quot;2&quot;</code>, ...) and the 0-based sample it is on</td>
+</tr>
+<tr>
+<td><code>metadata</code></td>
+<td><code>n_channels</code> (physical channels, not O2Hb + HHb) and, if the export has a Fit Factor column, <code>fit_factor_mean</code>; for a folder, from its first file</td>
+</tr>
+<tr>
+<td><code>channel_labels</code></td>
+<td>e.g. <code>[&quot;Tx1&quot;, &quot;Tx2&quot;]</code></td>
+</tr>
+<tr>
+<td><code>sample_rate</code></td>
+<td>Hz, from the first file</td>
+</tr>
+</tbody></table>
+<p>Row 0 of an export is the absolute baseline, not a delta, and is skipped.
+Known limitation: for a folder, each event&#39;s <code>sample</code> is its index within its
+own file; it is not shifted by the length of the files before it.</p>
+<hr>
+<h2 id="numeric-precision-float64">Numeric precision (float64)</h2>
+<p>Signals, time axes, trial matrices and images are <strong>float64 everywhere</strong> in
+this library. TDT&#39;s SDK delivers float32, and numpy is not safe on
+single-precision data of a realistic length: <code>np.polyfit</code> on a float32
+regressor silently drops the slope term once <code>n * float32-eps</code> exceeds the
+ratio of the regressor&#39;s spread to its mean (about 200,000 samples, three
+minutes at 1 kHz, for a 415 channel of 25 ± 1), returning a line at roughly
+half the true slope with only a <code>RankWarning</code>; sums, means and FFTs lose
+digits the same way, less visibly. So the rule is enforced, not left to
+callers:</p>
+<ul>
+<li><strong>Every file load returns float64</strong>, whatever the file stores.
+<code>get_tdt_struct</code> widens each stream as it reads the block;
+<code>process_tdt_folder</code>&#39;s <code>x</code>, <code>raw</code>, <code>corr</code>, <code>f0</code> and every raw <code>channels</code>
+trace are float64; so are the Oxysoft readers, <code>load_any_file</code>
+(<code>GenericTable.data</code>), <code>load_pt2</code> (the file stores float32), and
+<code>Dataset.signals</code> — including a <code>Dataset</code> or <code>GenericTable</code> you build by
+hand.</li>
+<li><strong>Every public function that takes a signal, a time axis or a trial matrix
+widens it on the way in</strong> — smoothing, z-scoring, PETH, FFT, AUC, curve
+fits, peak finding, splicing, motion correction, bleaching, denoising,
+<code>extract_group_trials</code> — so arrays that did not come through a loader
+(straight from the <code>tdt</code> SDK, or from your own pipeline) are covered too.
+Hand any of them float32 and you get float64 results, bit-identical to what
+the same values as float64 give.</li>
+<li>Widening float32 to float64 is exact, so no value changes; an array that is
+already float64 is passed through without a copy.</li>
+</ul>
+<h3 id="numericas_float64a---npndarray"><code>numeric.as_float64(a) -&gt; np.ndarray</code></h3>
+<p>The one helper that does it (<code>from PyATCLI.numeric import as_float64</code>;
+<code>numeric.FLOAT</code> is <code>np.float64</code>). Returns <code>a</code> itself if it already is a float64
+array, otherwise a widened copy (float32, float16, integer arrays, lists);
+NaN and inf are kept as they are.</p>
+<hr>
+<h2 id="tdt-photometry-processing">TDT Photometry Processing</h2>
+<h3 id="process_tdt_folderfolder_path-regression_methodols-progressnone"><code>process_tdt_folder(folder_path, regression_method=&quot;ols&quot;, progress=None)</code></h3>
+<p>The full photometry pipeline, and the main TDT entry point: load block →
+extract 465nm signal (+ optional 415nm isosbestic reference) → motion
+correction → bleaching baseline → ΔF/F → denoise → event markers.
+ΔF/F is the motion-corrected residual divided by the 465 channel&#39;s
+bleaching baseline (<code>f0</code>); everything is computed in float64.</p>
+<ul>
+<li><code>regression_method</code> (<code>&quot;ransac&quot; | &quot;huber&quot; | &quot;ols&quot;</code>, see
+<a href="#regression_methods"><code>REGRESSION_METHODS</code></a> below) — which regression the
+isosbestic-vs-signal motion correction uses.</li>
+</ul>
+<p><strong>Returns</strong> <code>dict</code>:</p>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>x</code></td>
+<td>time vector</td>
+</tr>
+<tr>
+<td><code>raw</code></td>
+<td>motion-corrected fluorescence, in the recording&#39;s own units: the 465 minus its isosbestic-predicted motion component (the 465 itself if there is no 415 stream)</td>
+</tr>
+<tr>
+<td><code>corr</code> / <code>dff</code></td>
+<td>final ΔF/F (denoised) — <code>dff</code> is an alias for <code>corr</code></td>
+</tr>
+<tr>
+<td><code>f0</code></td>
+<td>baseline fluorescence: the 465 channel&#39;s photobleaching trend, the denominator of ΔF/F</td>
+</tr>
+<tr>
+<td><code>fs</code></td>
+<td>sampling frequency</td>
+</tr>
+<tr>
+<td><code>store</code></td>
+<td>signal label</td>
+</tr>
+<tr>
+<td><code>markers</code></td>
+<td>behavioral event markers (see <a href="#get_event_markersdata---listdict"><code>get_event_markers</code></a>)</td>
+</tr>
+<tr>
+<td><code>channels</code></td>
+<td><code>[{&quot;key&quot;, &quot;label&quot;, &quot;y&quot;}, ...]</code> — raw, un-corrected per-wavelength streams (<code>main_driver</code>, plus <code>isosbestic</code> if a 415 reference exists)</td>
+</tr>
+<tr>
+<td><code>motion_correction_inlier_fraction</code></td>
+<td>fraction (0–1) of samples kept as inliers during motion correction, or <code>None</code> if there was no 415 reference stream</td>
+</tr>
+</tbody></table>
+<h3 id="regression_methods"><code>REGRESSION_METHODS</code></h3>
+<pre><code class="language-python">REGRESSION_METHODS = (&quot;ransac&quot;, &quot;huber&quot;, &quot;ols&quot;)
+</code></pre>
+<p>The three motion-correction regressions <code>process_tdt_folder</code>/<code>load_dataset</code>
+accept:</p>
+<ul>
+<li><strong><code>ols</code></strong> <em>(default)</em> — plain least-squares, no robustness at all. The
+fit line can get dragged toward a severe artifact, but that&#39;s a
+predictable weakness; unlike RANSAC/Huber below it never actively
+discards or downweights a sample, so it can&#39;t mistake a real, large
+biological transient for an artifact and distort the correction there.</li>
+<li><strong><code>ransac</code></strong> — fits to random small subsets, keeps whichever
+gets the most points within a residual threshold, refits on just those
+inliers. Excludes artifact points from the fit entirely rather than
+downweighting them — worth trying when artifacts are occasional and
+severe enough (a fiber-cord twist, a brief motion burst) that this
+trade-off clearly favors excluding them.</li>
+<li><strong><code>huber</code></strong> — every point stays in the fit, but points beyond a
+residual threshold get down-weighted instead of excluded. Gentler than
+RANSAC&#39;s hard cut; better suited to noise elevated throughout the
+recording rather than concentrated in a few bad stretches.</li>
+</ul>
+<h3 id="validate_tdt_folderpath---bool-str"><code>validate_tdt_folder(path) -&gt; (bool, str)</code></h3>
+<p>Checks whether a directory contains a valid TDT recording block. Returns
+<code>(True, folder_name)</code> if valid, <code>(False, error_message)</code> if not.</p>
+<h3 id="get_tdt_structpath-progressnone-read_streamstrue"><code>get_tdt_struct(path, progress=None, read_streams=True)</code></h3>
+<p>Loads the raw TDT block (streams, epocs, scalars) via the <code>tdt</code> SDK.
+Handles a real SDK bug around epoc stores with mismatched onset/offset
+counts by reading each epoc store with its own fresh call rather than
+all at once. <code>read_streams=False</code> skips the streams (the slow part) and
+still reads the block&#39;s info, scalars and epoc stores.</p>
+<h3 id="scan_tdt_markersfolder_path-splicesnone-progressnone---dict"><code>scan_tdt_markers(folder_path, splices=None, progress=None) -&gt; dict</code></h3>
+<p>Lists a TDT block&#39;s event markers <strong>without processing the recording</strong> —
+no ΔF/F, and the streams are only read when <code>splices</code> need the time axis.
+About a third of a second per block, against about two seconds to process
+it. <code>splices</code> (optional): the recording&#39;s saved splices, a list of
+<code>{&quot;mode&quot;, &quot;start&quot;, &quot;end&quot;}</code>, applied to the marker times and the recording&#39;s
+span exactly as PyAT does when it restores <code>splice.json</code> (see
+<code>replay_splices</code>).</p>
+<p><strong>Returns</strong> <code>{&quot;markers&quot;, &quot;t_range&quot;, &quot;n_splices&quot;, &quot;block_name&quot;, &quot;start_time&quot;}</code>:
+<code>markers</code> is what <code>get_event_markers</code> returns (after the splices);
+<code>t_range</code> is <code>(first, last)</code> sample time — exact when splices were given,
+otherwise <code>(0, the block&#39;s recorded duration)</code>, which can run a few
+hundredths of a second past the last sample — or <code>None</code> if the block does
+not say how long it is; <code>n_splices</code> is how many splices took effect;
+<code>block_name</code> is Synapse&#39;s <code>Subject-YYMMDD-HHMMSS</code>.</p>
+<h3 id="get_plot_datadata-store_name-channel0-max_pointsnone---time-signal-fs"><code>get_plot_data(data, store_name, channel=0, max_points=None) -&gt; (time, signal, fs)</code></h3>
+<p>Extracts one stream&#39;s time series from a loaded TDT struct, with
+optional downsampling.</p>
+<h3 id="correct_bleachingy-fs---corrected-trend"><code>correct_bleaching(y, fs) -&gt; (corrected, trend)</code></h3>
+<p>Estimates and removes the photobleaching trend via masked curve fitting.</p>
+<h3 id="denoise_signalsignal-fs-cutoff5-order2"><code>denoise_signal(signal, fs, cutoff=5, order=2)</code></h3>
+<p>Low-pass Butterworth filter for ΔF/F signals.</p>
+<h3 id="get_event_markersdata---listdict"><code>get_event_markers(data) -&gt; list[dict]</code></h3>
+<p>Extracts behavioral event markers from every populated TDT epoc store
+(auto-discovered — nothing about store names is hardcoded). Each onset
+and offset becomes its own marker (<code>phase</code>: <code>&quot;high&quot;</code>/<code>&quot;low&quot;</code>), except the
+<code>Note</code> store (instantaneous, text-labeled, no offset) and <code>Tick</code> (TDT&#39;s
+own 1-second heartbeat, skipped entirely — not a real event).</p>
+<p><strong>Returns</strong> list of <code>{&quot;time&quot;, &quot;label&quot;, &quot;color&quot;, &quot;store&quot;, &quot;phase&quot;}</code>
+(<code>phase</code> omitted for <code>Note</code> markers).</p>
+<h3 id="debounce_eventstimes-min_isi---listfloat"><code>debounce_events(times, min_isi) -&gt; list[float]</code></h3>
+<p>Collapses switch-bounce/double-tap duplicate timestamps — drops any
+event within <code>min_isi</code> seconds of the last <em>kept</em> event. Independent of
+any fixed schedule; a <code>min_isi</code> below the subject&#39;s real max event rate
+leaves genuinely fast consecutive events intact.</p>
+<hr>
+<h2 id="signal-analysis">Signal Analysis</h2>
+<h3 id="general-helpers">General helpers</h3>
+<h4 id="estimate_sample_ratetime_array---float"><code>estimate_sample_rate(time_array) -&gt; float</code></h4>
+<p>Sample rate (Hz) from a timestamp array, via the <strong>median</strong> inter-sample
+interval — robust to one irregular gap skewing a naive
+<code>1/(t[1]-t[0])</code> estimate.</p>
+<h4 id="mean_channelsarr---npndarray"><code>mean_channels(arr) -&gt; np.ndarray</code></h4>
+<p>Collapses a multi-channel <code>(n_channels, n_samples)</code> array to its
+across-channel mean (e.g. Oxysoft&#39;s per-detector o2hb/hhb/thb). A no-op
+if <code>arr</code> is already 1D.</p>
+<h4 id="compute_group_statstrial_matrix---mean_trace-sem_trace"><code>compute_group_stats(trial_matrix) -&gt; (mean_trace, sem_trace)</code></h4>
+<p>Mean + SEM across trials (rows) of a trial × time matrix. <code>sem_trace</code> is
+all zeros for fewer than 2 trials (SEM with ddof=1 is undefined below
+that); <code>mean_trace</code> is all zeros for 0 trials.</p>
+<h4 id="compute_marker_intervalsmarkers---listdict"><code>compute_marker_intervals(markers) -&gt; list[dict]</code></h4>
+<p>Time-since-previous-marker, two ways, for a list of markers from any
+source (TDT epocs, Oxysoft events, manual). Each marker needs at least
+<code>time</code>/<code>label</code> keys (<code>store</code> falls back to <code>label</code>, <code>phase</code> optional).</p>
+<p><strong>Returns</strong> one dict per marker: <code>{&quot;time&quot;, &quot;store&quot;, &quot;label&quot;, &quot;phase&quot;, &quot;dt_store&quot;, &quot;dt_global&quot;}</code> — <code>dt_store</code> is the interval since that
+store&#39;s last event (for a high/low pair, a low marker&#39;s <code>dt_store</code> <em>is</em>
+its on-duration); <code>dt_global</code> is the interval since whatever marker came
+immediately before it, regardless of store. Both are <code>None</code> for the
+first event in their sequence.</p>
+<h4 id="smooth_signaldata-fs-window_sec05"><code>smooth_signal(data, fs, window_sec=0.5)</code></h4>
+<p>Moving-average smoothing filter.</p>
+<h4 id="bin_for_heatmapz_seg-num_bins300"><code>bin_for_heatmap(z_seg, num_bins=300)</code></h4>
+<p>Bins a signal into <code>num_bins</code> equal segments, for heatmap plotting.</p>
+<h3 id="z-score--event-triggered-analysis">Z-score / event-triggered analysis</h3>
+<h4 id="get_zscore_slicetime_array-signal-center_t-windownone-prenone-postnone---time_segment-z_scored_signal"><code>get_zscore_slice(time_array, signal, center_t, window=None, pre=None, post=None) -&gt; (time_segment, z_scored_signal)</code></h4>
+<p>Extracts and z-scores a window around one event time. Accepts either a
+symmetric <code>window</code> (split evenly) or an asymmetric <code>pre</code>/<code>post</code> pair
+(<code>pre</code>/<code>post</code> take precedence if both are given).</p>
+<p>The baseline is the pre-event part of the window. Its mean/SD are taken
+after pulling any sample further than 5 robust SDs (1.4826 × MAD) from the
+baseline median in to that limit, so a brief artifact can&#39;t inflate the SD
+and flatten the whole trial. The samples being scored are never altered
+(no clipping), and the result does not depend on the units of the signal.
+A flat baseline returns all zeros.</p>
+<h4 id="compute_event_zscore_pethtime_array-signal-event_times-pre-post-num_bins300-progressnone---dict"><code>compute_event_zscore_peth(time_array, signal, event_times, pre, post, num_bins=300, progress=None) -&gt; dict</code></h4>
+<p>Z-scores and aligns <strong>every occurrence</strong> of one event type into a
+trial × time matrix (GuPPy-style), for a stacked-heatmap + trial-average
+view — as opposed to a single click-triggered PETH. Each trial is
+z-scored independently against its own pre-event baseline, then
+resampled onto a shared <code>num_bins</code>-point relative-time axis so trials
+with slightly different raw sample counts can still stack into one
+matrix.</p>
+<p><strong>Returns</strong> <code>dict</code>:</p>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>time_axis</code></td>
+<td><code>(num_bins,)</code>, relative time from <code>-pre</code> to <code>+post</code></td>
+</tr>
+<tr>
+<td><code>trial_matrix</code></td>
+<td><code>(n_valid_trials, num_bins)</code></td>
+</tr>
+<tr>
+<td><code>trial_event_times</code></td>
+<td>the <code>event_times</code> that produced a usable trial (too-close-to-recording-edge events are skipped)</td>
+</tr>
+<tr>
+<td><code>mean_trace</code> / <code>sem_trace</code></td>
+<td><code>(num_bins,)</code> each</td>
+</tr>
+</tbody></table>
+<h3 id="fft">FFT</h3>
+<h4 id="compute_fft_slicetime_array-signal-center_t-fs-windownone-prenone-postnone---freqs-power-seg_x-seg_y"><code>compute_fft_slice(time_array, signal, center_t, fs, window=None, pre=None, post=None) -&gt; (freqs, power, seg_x, seg_y)</code></h4>
+<p>Extracts a window around <code>center_t</code> and computes its FFT, after mean
+removal + linear detrending (eliminates the DC spike/slow drift so
+physiological frequencies — breathing ~0.3Hz, heart rate ~1Hz — are
+visible). Same symmetric-<code>window</code>-vs-asymmetric-<code>pre</code>/<code>post</code> convention
+as <code>get_zscore_slice</code>.</p>
+<h4 id="find_fft_peaksfreqs-power-n_peaks3---listdict"><code>find_fft_peaks(freqs, power, n_peaks=3) -&gt; list[dict]</code></h4>
+<p>Top-N peaks in a power spectrum, as data. Returns
+<code>[{&quot;freq_hz&quot;, &quot;power&quot;, &quot;bpm&quot;}, ...]</code> sorted by power descending — empty
+if fewer than 3 usable frequency bins (≥0.05Hz) exist or nothing clears
+the prominence bar.</p>
+<h3 id="curve-fitting">Curve fitting</h3>
+<h4 id="compute_slope_segmentx_data-y_data-p1_idx-p2_idx-padding_pct005---dict"><code>compute_slope_segment(x_data, y_data, p1_idx, p2_idx, padding_pct=0.05) -&gt; dict</code></h4>
+<p>Least-squares linear regression slope between two index boundaries.
+Returns <code>{&quot;slope&quot;, &quot;intercept&quot;, &quot;crop_x&quot;, &quot;crop_y&quot;, &quot;x1&quot;, &quot;y1&quot;, &quot;x2&quot;, &quot;y2&quot;}</code>.</p>
+<h4 id="fit_model_to_segmentx_seg-y_seg-model_fn-p0_fn---dict"><code>fit_model_to_segment(x_seg, y_seg, model_fn, p0_fn) -&gt; dict</code></h4>
+<p>Fits <code>model_fn</code> (signature <code>f(x, *params) -&gt; y</code>, see
+<a href="#curve-fit-models">Curve-fit models</a>) to a segment via <code>scipy.optimize.curve_fit</code>,
+with <code>p0_fn(x_seg, y_seg) -&gt; initial_guesses</code> supplying the starting
+parameters. Returns <code>{&quot;popt&quot;, &quot;y_fit&quot;, &quot;r2&quot;, &quot;success&quot;, &quot;error&quot;}</code>.</p>
+<h3 id="peak-detection">Peak detection</h3>
+<h4 id="find_significant_peakstime_array-signal-z_threshold50-min_distance_sec10-include_troughsfalse---listdict"><code>find_significant_peaks(time_array, signal, z_threshold=5.0, min_distance_sec=1.0, include_troughs=False) -&gt; list[dict]</code></h4>
+<p>Auto-detects statistically significant transients directly from the
+signal — instead of trusting that externally-supplied event markers
+actually line up with real activity. Z-scores the whole recording
+against its own global mean/std (not per-event), then <code>scipy.signal.find_peaks</code>
+picks local maxima at or above <code>z_threshold</code> (default 5, the usual
+five-sigma convention), at least <code>min_distance_sec</code> apart.
+<code>include_troughs</code> also detects significant negative deflections
+(off by default).</p>
+<p><strong>Returns</strong> <code>[{&quot;time&quot;, &quot;z_score&quot;, &quot;kind&quot;: &quot;peak&quot;|&quot;trough&quot;}, ...]</code>, sorted
+by time.</p>
+<h4 id="find_peak_near_eventstime_array-signal-event_times-pre-post-z_threshold50-include_troughsfalse-progressnone---listdict"><code>find_peak_near_events(time_array, signal, event_times, pre, post, z_threshold=5.0, include_troughs=False, progress=None) -&gt; list[dict]</code></h4>
+<p>Checks whether a significant peak actually shows up near each given
+event time (baselined the same way as <code>get_zscore_slice</code>, i.e. relative
+to that event&#39;s own local baseline — not the whole recording). Works for
+one event or many occurrences of the same type.</p>
+<p>The default <code>z_threshold</code> of 5 is deliberately strict: the search takes
+the <em>largest</em> z over every sample in the <code>pre</code>/<code>post</code> window, so a low
+threshold reports a &quot;response&quot; by chance in most windows. On a real
+fibre-photometry recording searched the way PyAT does it (0.5 s-smoothed
+ΔF/F, 5 s baseline, 10 s response window), random pseudo-events were
+reported as having a response 58% of the time at 2.5, 40% at 3, 21% at 4
+and 10% at 5; the exact rates depend on the window lengths.</p>
+<p><strong>Returns</strong> one dict per <code>event_time</code> (same order):
+<code>{&quot;event_time&quot;, &quot;found&quot;, &quot;peak_time&quot;, &quot;latency&quot;, &quot;z_score&quot;, &quot;kind&quot;}</code> —
+<code>found</code> is <code>False</code> (with the rest <code>None</code>) if the window was unusable or
+nothing cleared <code>z_threshold</code>.</p>
+<h3 id="area-under-the-curve">Area under the curve</h3>
+<h4 id="compute_auc_from_tracex-y---dict"><code>compute_auc_from_trace(x, y) -&gt; dict</code></h4>
+<p>Trapezoidal AUC, split by sign — the shared core <code>compute_auc_window</code>
+and <code>compute_auc_matrix</code> both delegate to. <code>positive_auc</code> integrates
+only where <code>y &gt;= 0</code>; <code>negative_auc</code> integrates only where <code>y &lt;= 0</code> and
+is itself signed (≤ 0, not an absolute value); <code>total_auc</code> is their sum
+(equivalent to the plain net signed integral).</p>
+<p><strong>Returns</strong> <code>{&quot;total_auc&quot;, &quot;positive_auc&quot;, &quot;negative_auc&quot;}</code> — all zero
+if fewer than 2 points.</p>
+<h4 id="compute_auc_windowtime_array-signal-center_t-pre-post---dict"><code>compute_auc_window(time_array, signal, center_t, pre, post) -&gt; dict</code></h4>
+<p>Slices a pre/post window around an event and integrates it (same
+windowing convention as <code>get_zscore_slice</code>). Deliberately does <strong>not</strong>
+z-score first — AUC quantifies the signal in its own (already
+dF/F-normalized) units. Returns <code>{&quot;seg_x&quot;, &quot;seg_y&quot;, &quot;total_auc&quot;, &quot;positive_auc&quot;, &quot;negative_auc&quot;}</code>.</p>
+<h4 id="compute_auc_matrixtime_axis-trial_matrix---dict"><code>compute_auc_matrix(time_axis, trial_matrix) -&gt; dict</code></h4>
+<p>Per-trial + group AUC for a trial × time matrix (see
+<code>compute_event_zscore_peth</code>). Returns <code>{&quot;per_trial&quot;: [...], &quot;group&quot;: {...}}</code>
+— <code>per_trial</code> one entry per row (same order), <code>group</code> computed on the
+matrix&#39;s mean trace.</p>
+<h3 id="peri-event-statistics">Peri-event statistics</h3>
+<h4 id="compute_peri_event_from_tracerel_x-y-post-bin_width10---dict"><code>compute_peri_event_from_trace(rel_x, y, post, bin_width=1.0) -&gt; dict</code></h4>
+<p>Peak amplitude, latency (time-to-peak), and mean-time-bins from an
+already event-relative trace (<code>rel_x</code>: 0 = event time). Peak/latency are
+post-event only (<code>rel_x &gt;= 0</code> — a pre-event sample can&#39;t be a response),
+using signed <code>argmax(|y|)</code> so a strong inhibitory (negative-going)
+response is captured correctly, not just the largest positive value.</p>
+<p><strong>Returns</strong> <code>{&quot;peak_amplitude&quot;, &quot;latency&quot;, &quot;mean_bins&quot;}</code> — <code>mean_bins</code> is
+a list of <code>{&quot;bin_start&quot;, &quot;bin_end&quot;, &quot;mean&quot;}</code> covering <code>[0, post]</code> in
+<code>bin_width</code>-second chunks (last bin truncated, not dropped, if <code>post</code>
+isn&#39;t evenly divisible).</p>
+<h4 id="compute_peri_event_matrixtime_axis-trial_matrix-post-bin_width10---dict"><code>compute_peri_event_matrix(time_axis, trial_matrix, post, bin_width=1.0) -&gt; dict</code></h4>
+<p>Per-trial + group version of the above, mirroring <code>compute_auc_matrix</code>.
+Returns <code>{&quot;per_trial&quot;: [...], &quot;group&quot;: {...}}</code>, each entry
+<code>{&quot;peak_amplitude&quot;, &quot;latency&quot;, &quot;mean_bins&quot;}</code>.</p>
+<hr>
+<h2 id="non-destructive-splicing">Non-destructive splicing</h2>
+<p>Both functions work on 1D arrays <em>and</em> 2D <code>(n_channels, n_samples)</code>
+arrays via <code>extra_channels</code> (sliced along the last axis) — so Oxysoft&#39;s
+multi-detector data splices exactly like TDT&#39;s single-channel data, no
+special-casing needed by the caller.</p>
+<h3 id="splice_keep_insidex-raw-corr-markers-detected_markers-start-end-extra_channelsnone---dict--none"><code>splice_keep_inside(x, raw, corr, markers, detected_markers, start, end, extra_channels=None) -&gt; dict | None</code></h3>
+<p>Trims <code>x</code>/<code>raw</code>/<code>corr</code> to <code>[start, end]</code>, filters both marker lists to
+the same range. <code>extra_channels</code> (optional): any other same-length
+arrays that need trimming identically — e.g. TDT&#39;s raw per-wavelength
+channels, or Oxysoft&#39;s <code>(n_detectors, n_samples)</code> arrays.</p>
+<p><strong>Returns</strong> <code>{&quot;x&quot;, &quot;raw&quot;, &quot;corr&quot;, &quot;markers&quot;, &quot;detected_markers&quot;, &quot;n_samples&quot;, &quot;extra_channels&quot;}</code> (copies, not views), or <code>None</code> if the
+range doesn&#39;t contain at least 2 samples. Marker timestamps stay
+absolute (not re-zeroed).</p>
+<h3 id="splice_cut_outx-raw-corr-markers-detected_markers-start-end-extra_channelsnone---dict--none"><code>splice_cut_out(x, raw, corr, markers, detected_markers, start, end, extra_channels=None) -&gt; dict | None</code></h3>
+<p>Removes <code>[start, end]</code> and stitches the remainder together, shifting
+everything after the cut backward by the cut&#39;s duration so the timeline
+stays contiguous. Markers inside the cut are dropped; markers after it
+are shifted by the same amount. Same <code>extra_channels</code> support as above.</p>
+<p><strong>Returns</strong> same shape as <code>splice_keep_inside</code>, or <code>None</code> if there isn&#39;t
+usable signal on both sides of the cut to stitch together.</p>
+<h3 id="replay_splicesx-splices-markersnone-detected_markersnone---dict"><code>replay_splices(x, splices, markers=None, detected_markers=None) -&gt; dict</code></h3>
+<p>Replays a saved list of splices (PyAT&#39;s <code>splice.json</code>: <code>{&quot;mode&quot;, &quot;start&quot;, &quot;end&quot;}</code> each, in the order they were applied; <code>&quot;cut_out&quot;</code> cuts, any other
+mode keeps the range) on a time axis and marker lists, <strong>without touching
+any signal</strong>. It goes through <code>splice_cut_out</code> / <code>splice_keep_inside</code>
+themselves, so <code>x</code> and the marker times come out exactly as a full replay
+gives them, down to the last digit. A splice that leaves fewer than 2
+samples is skipped, as PyAT skips it.</p>
+<p><strong>Returns</strong> <code>{&quot;x&quot;, &quot;markers&quot;, &quot;detected_markers&quot;, &quot;applied&quot;}</code> (<code>applied</code> =
+how many splices took effect).</p>
+<hr>
+<h2 id="recordings-and-saved-state">Recordings and saved state</h2>
+<p><code>recording.py</code> is a recording as PyAT holds it, without the GUI: everything
+between &quot;open a recording&quot; and &quot;run an analysis&quot; that isn&#39;t drawing. The app
+keeps this state in <code>ctx.cache</code>; these functions build, edit and query exactly
+that dict, so a script gets the same numbers the app shows.</p>
+<h3 id="the-cache-dict">The cache dict</h3>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>source</code></td>
+<td><code>&quot;TDT&quot;</code>, <code>&quot;Oxysoft&quot;</code> or <code>&quot;Generic&quot;</code></td>
+</tr>
+<tr>
+<td><code>source_path</code></td>
+<td>the folder / file it was read from</td>
+</tr>
+<tr>
+<td><code>store</code></td>
+<td>a display name: the folder / file / table name, plus a tag per splice</td>
+</tr>
+<tr>
+<td><code>x</code>, <code>fs</code></td>
+<td>time axis (s) and sampling rate (Hz)</td>
+</tr>
+<tr>
+<td><code>markers</code></td>
+<td>user-placed markers (see <a href="#markers">Markers</a>)</td>
+</tr>
+<tr>
+<td>TDT: <code>raw</code>, <code>corr</code>, <code>detected_markers</code>, <code>signals</code></td>
+<td>motion-corrected fluorescence, dF/F, TDT&#39;s own events, and <code>{key: {&quot;label&quot;, &quot;y&quot;}}</code> for <code>normalized</code>, <code>main_driver</code>, <code>isosbestic</code></td>
+</tr>
+<tr>
+<td>Oxysoft: <code>o2hb</code>, <code>hhb</code>, optional <code>thb</code>, <code>detected_markers</code>, <code>fit_factor_mean</code></td>
+<td><code>(n_channels, n_samples)</code> arrays</td>
+</tr>
+<tr>
+<td>Generic: <code>y_columns</code>, <code>x_label</code></td>
+<td><code>{header: y}</code> and the x column&#39;s header</td>
+</tr>
+</tbody></table>
+<h3 id="saved-state-json-saves">Saved state (&quot;JSON saves&quot;)</h3>
+<p>The app saves markers and splices next to a recording, in a <code>JSON saves/</code>
+folder: inside a folder source (TDT), beside a file source (Oxysoft, Generic).</p>
+<ul>
+<li><code>saved_state_dir(source_path)</code> — that folder.</li>
+<li><code>marker_sidecar_path(source_path)</code> — <code>markers.json</code> inside a folder source,
+<code>&lt;file name&gt;.markers.json</code> beside a file source.</li>
+<li><code>legacy_marker_sidecar_path(source_path)</code> — <code>&lt;source&gt;.markers.json</code>, where
+markers were saved before the <code>JSON saves/</code> folder existed (only read).</li>
+<li><code>annotation_sidecar_path(source_path, filename)</code> — the same place for
+<code>highlights.json</code> / <code>text_annotations.json</code>.</li>
+<li><code>splice_sidecar_path(source_path)</code> — <code>splice.json</code>, next to <code>markers.json</code>.</li>
+<li><code>read_saved_splices(source_path) -&gt; list[dict]</code> — every saved splice in the
+order it was applied (<code>[]</code> if none; the old single-splice dict format is
+accepted).</li>
+<li><code>read_saved_markers(source_path) -&gt; list[dict]</code> — the saved markers, from
+<code>JSON saves/</code> else the legacy location (<code>[]</code> if none; <code>ValueError</code> if the file
+does not hold a list).</li>
+<li><code>read_saved_annotations(source_path, filename) -&gt; list[dict]</code> — the saved highlights
+(<code>HIGHLIGHTS_FILE</code>) or text boxes (<code>TEXT_ANNOTATIONS_FILE</code>) (<code>[]</code> if none).
+<code>load_recording</code> puts them in the cache as <code>cache[&quot;highlights&quot;]</code> and
+<code>cache[&quot;text_annotations&quot;]</code> when the recording has them, as the app does.</li>
+</ul>
+<h3 id="building-a-cache">Building a cache</h3>
+<ul>
+<li><code>build_signal_options(result) -&gt; dict</code> — the plot/analysis signals a processed
+TDT recording offers, <code>{key: {&quot;label&quot;, &quot;y&quot;}}</code> (the app adds a colour to each).</li>
+<li><code>make_tdt_cache(folder_path, result, signals=None) -&gt; dict</code> — the cache for a
+<code>process_tdt_folder</code> result, before any splice or saved marker.</li>
+<li><code>make_oxysoft_cache(file_path, dataset) -&gt; dict</code> — from <code>load_dataset_file</code>&#39;s
+<code>Dataset</code>; events become <code>detected_markers</code> in seconds.</li>
+<li><code>make_generic_cache(path, table, x_index=0, y_indices=None) -&gt; dict</code> — one
+<code>GenericTable</code>: column <code>x_index</code> is x (rows with no x are dropped), each of
+<code>y_indices</code> (default every other column) a trace.</li>
+<li><code>normalized_signal(cache) -&gt; (key, label, y)</code> — the trace the analyses that
+work on the corrected signal (Event PETH, peak finder, group analysis) use:
+<code>&quot;normalized&quot;</code> if offered, else the first signal; for a source with no signals
+map, its <code>corr</code> else <code>raw</code>.</li>
+</ul>
+<h3 id="splicing-a-recording">Splicing a recording</h3>
+<ul>
+<li><code>apply_splice(cache, mode, start, end, regression_method=&quot;ols&quot;, progress=None) -&gt; dict | None</code>
+— one splice (<code>MODE_CUT_OUT</code> / <code>MODE_KEEP_INSIDE</code>) applied to a cache of any
+source; a new cache, <code>cache</code> itself is untouched; <code>None</code> if the range isn&#39;t
+usable. For TDT both modes <strong>re-fit the dF/F</strong> (<code>compute_dff</code>, with
+<code>regression_method</code>) on the raw channels that survive: an artifact dragging
+the original fit may now be excluded, so a splice is a fresh fit, not a
+shorter view of the old one.</li>
+<li><code>apply_splices(cache, splices, regression_method=&quot;ols&quot;, progress=None) -&gt; (cache, applied)</code>
+— a saved list, each stacked on the one before; an unusable one is skipped.
+<code>applied</code> is the list that took effect, and <code>store</code> is tagged with them.</li>
+<li><code>spliced_store_name(base_name, splices) -&gt; str</code> — <code>&quot;Rec1 [cut 5.0s-8.0s, kept 2.0s-12.0s]&quot;</code>.</li>
+</ul>
+<h3 id="load_tdt_recordingfolder_path-regression_methodols-use_savedtrue-progressnone---dict"><code>load_tdt_recording(folder_path, regression_method=&quot;ols&quot;, use_saved=True, progress=None) -&gt; dict</code></h3>
+<p>Loads a TDT block the way the app does: processed to dF/F, its saved splices
+replayed, its saved markers put on top. Nothing is written. <code>use_saved=False</code>
+skips the <code>JSON saves/</code> folder (the recording exactly as recorded).</p>
+<p><strong>Returns</strong> <code>{&quot;cache&quot;, &quot;original_cache&quot;, &quot;splices&quot;, &quot;warnings&quot;}</code>: the cache after
+splices and markers; the unspliced one (or <code>None</code> if no splice applied), which
+is what the app keeps to restore the full recording; the splices that took
+effect; and a sentence for each saved file that could not be read (the recording
+is then used without it). <code>ValueError</code> if <code>folder_path</code> is an existing folder
+that is not a TDT block.</p>
+<h3 id="load_recordingpath-regression_methodols-use_savedtrue-tablenone-x_columnnone-y_columnsnone-progressnone---dict"><code>load_recording(path, regression_method=&quot;ols&quot;, use_saved=True, table=None, x_column=None, y_columns=None, progress=None) -&gt; dict</code></h3>
+<p>Opens any recording the app can: a TDT folder, an Oxysoft <code>.txt</code> export, or a
+generic table file (Excel, CSV, TSV, text), with its saved splices replayed and
+its saved markers and signal names on top (<code>use_saved=False</code> skips all three).
+Returns what <code>load_tdt_recording</code> returns: <code>{&quot;cache&quot;, &quot;original_cache&quot;, &quot;splices&quot;, &quot;warnings&quot;}</code>.</p>
+<p>For a generic file, <code>table</code> names which of its tables to open (needed only if it
+has more than one), <code>x_column</code> is its x column (default the first) and
+<code>y_columns</code> the traces (default every other column). <code>regression_method</code> matters
+for TDT only. <code>ValueError</code>, saying what is wrong, if <code>path</code> is not a recording it
+can open or a named table/column does not exist.</p>
+<h3 id="signal-names">Signal names</h3>
+<p>A TDT recording&#39;s signals get names built from its stores (<code>&quot;Main Driver (x465A)&quot;</code>,
+<code>&quot;Isosbestic (x415A)&quot;</code>). A person can give them names of their own in the app
+(Plot menu, Rename signals), and the app keeps them in <code>signal_labels.json</code> in the
+<code>JSON saves/</code> folder. The name appears in figures, legends and the <code>Channel</code> column
+of exported tables, so a script that wants the same output applies the same names —
+<code>load_recording</code> / <code>load_tdt_recording</code> already do.</p>
+<ul>
+<li><code>signal_labels_path(source_path)</code> — where <code>signal_labels.json</code> lives.</li>
+<li><code>read_saved_signal_labels(source_path) -&gt; dict</code> — <code>{signal key: name}</code> (<code>{}</code> if
+none; <code>ValueError</code> if the file does not hold an object).</li>
+<li><code>apply_signal_labels(cache, labels) -&gt; dict</code> — gives the cache&#39;s signals the names in
+<code>labels</code> (a key the recording lacks, or an empty name, is ignored). The cache dict is
+updated in place and returned; the arrays are not copied. A splice made afterwards keeps
+the names.</li>
+<li><code>current_signal_labels(cache) -&gt; dict</code> — <code>{signal key: name in effect}</code>; this is what a
+provenance record stores so a replay names the signals the same.</li>
+</ul>
+<h3 id="find_tdt_recordingspath---liststr"><code>find_tdt_recordings(path) -&gt; list[str]</code></h3>
+<p>Every valid TDT block anywhere under <code>path</code>, at any depth, sorted. Doesn&#39;t
+descend into a block, doesn&#39;t report <code>path</code> itself, and is safe against a
+folder that links back to one of its own ancestors (including Windows NTFS
+junctions, which <code>os.walk</code>&#39;s own link check misses).</p>
+<hr>
+<h2 id="writing-saved-state">Writing saved state</h2>
+<p><code>PyATCLI.saved_state</code> writes what PyAT&#39;s Save Changes writes, into the same files, so an edit made
+in a script is an edit made in the app — and PyAT&#39;s Save Changes writes through it, so the files are the same
+bytes either way.</p>
+<pre><code>JSON saves/
+  markers.json           [{&quot;time&quot;, &quot;label&quot;, &quot;color&quot;, &quot;fontsize&quot;}]
+  splice.json            [{&quot;mode&quot;: &quot;cut_out&quot; | &quot;keep_inside&quot;, &quot;start&quot;, &quot;end&quot;}, ...]   every splice, in order
+  signal_labels.json     {signal key: name}
+  highlights.json        [{&quot;start&quot;, &quot;end&quot;, &quot;color&quot;}]
+  text_annotations.json  [{&quot;x&quot;, &quot;y&quot;, &quot;text&quot;, &quot;fontsize&quot;}]
+</code></pre>
+<p><strong>Writers</strong> take what to write, replace what was saved, return the file&#39;s path, and refuse what the app could not
+read back (<code>ValueError</code>):</p>
+<ul>
+<li><code>write_saved_markers(source_path, markers)</code>, <code>write_saved_annotations(source_path, filename, items)</code></li>
+<li><code>write_saved_splices(source_path, splices)</code>, <code>write_saved_signal_labels(source_path, labels)</code> — with nothing to
+write the file is removed (returns <code>None</code>), as Save Changes never leaves behind an edit that was since undone.</li>
+<li><code>clear_saved_state(source_path) -&gt; [names]</code> — Undo All Changes, saved: deletes every file in <code>JSON saves/</code> (not
+the folder, nothing outside it).</li>
+<li><code>saved_state_summary(source_path) -&gt; dict</code> — <code>markers</code>, <code>splices</code>, <code>signal_labels</code>, <code>highlights</code>,
+<code>text_annotations</code> and the <code>folder</code>; an unreadable file is a <code>ValueError</code> naming it.</li>
+</ul>
+<p><strong>Edits</strong> do what one action in the app does, to what is already saved. Each opens the recording as the app does
+(saved splices replayed, so times are on the time axis as it now stands) and writes only its own file; <code>**load</code>
+is <code>load_recording</code>&#39;s options (<code>regression_method</code>, <code>table</code>, <code>x_column</code>, <code>y_columns</code>):</p>
+<ul>
+<li><code>add_marker(source_path, time, label=None, color=None, fontsize=None, **load) -&gt; dict</code> — a time outside the
+recording is an error. <code>remove_markers(source_path, time, tolerance=0.05, label=None, **load) -&gt; list</code> removes
+those near <code>time</code> and returns them.</li>
+<li><code>add_splice(source_path, mode, start, end, **load) -&gt; list</code> — stacks a splice on the saved ones; tried first,
+so a range that leaves fewer than 2 samples is an error and nothing is written. <code>remove_splice(source_path, number) -&gt; list</code> takes one out of the stack (1 = the first applied).</li>
+<li><code>rename_signals(source_path, {key: name}, **load) -&gt; dict</code> — an empty name takes a rename away; a key the
+recording does not have is an error that lists the ones it does.</li>
+<li><code>add_highlight(source_path, start, end, color=&quot;Yellow&quot;) -&gt; dict</code> — <code>color</code> is one of <code>HIGHLIGHT_COLORS</code> (the
+Highlighter&#39;s five) by name, or a hex colour. <code>add_text(source_path, x, y, text, fontsize=10) -&gt; dict</code>.</li>
+<li><code>new_marker</code>, <code>new_highlight</code>, <code>new_text_annotation</code> — the dicts those make, validated; <code>DEFAULT_MARKER</code>,
+<code>HIGHLIGHT_COLORS</code>, <code>HIGHLIGHT_ALPHA</code>, <code>DEFAULT_TEXT_FONT_SIZE</code>, <code>SPLICE_MODES</code>.</li>
+</ul>
+<pre><code class="language-python">pl.saved_state.add_marker(&quot;D:/rats/Rat7-250101&quot;, 312.5, label=&quot;Lever&quot;)
+pl.saved_state.add_splice(&quot;D:/rats/Rat7-250101&quot;, &quot;cut_out&quot;, 40.0, 55.0)
+pl.load_recording(&quot;D:/rats/Rat7-250101&quot;)[&quot;splices&quot;]        # [{&quot;mode&quot;: &quot;cut_out&quot;, &quot;start&quot;: 40.0, &quot;end&quot;: 55.0}]
+</code></pre>
+<p><code>python -m PyATCLI saved ...</code> runs these (see <a href="#command-line">Command line</a>).</p>
+<hr>
+<h2 id="output-folders">Output folders</h2>
+<p><code>PyATCLI.outputs</code> is where results go once there is an Output folder: a folder per kind of data and,
+inside it, one per recording, so a recording&#39;s tables, figures and reports accumulate together instead of a flat
+pile of similar-looking filenames. PyAT&#39;s exports use it (Options → Output folder) and so does the command line
+(<code>--output-folder</code>), so a recording analysed from a script and in the app ends up in one place.</p>
+<pre><code>&lt;Output&gt;/
+  TDT/&lt;recording name&gt; (Analysis)/       Oxysoft/...   Generic/...   PT2/...   Text Field Study/...
+  Group Analysis/&lt;group name&gt;/
+</code></pre>
+<ul>
+<li><code>recording_dir(base, data_type, source_path) -&gt; str</code> — the recording&#39;s folder (made if it is not there; the
+same one every time for the same recording, however its path is spelt). The name is the recording&#39;s own
+basename plus <code> (Analysis)</code> — never the display name, which grows a <code>[cut ...]</code> tag per splice — so it can&#39;t be
+mistaken for the recording. Two different recordings of one name (two subjects&#39; <code>Day1</code>) get <code> (2)</code>: a marker
+file in each folder (<code>SOURCE_MARKER_FILENAME</code>) says which source it belongs to.</li>
+<li><code>group_dir(base, group_name) -&gt; str | None</code> — <code>Group Analysis/&lt;name&gt;</code>, not made; a name already used for a finished
+run (its folder holds an <code>analysis_settings.json</code>) gets <code> (2)</code>, <code> (3)</code>. <code>None</code> if the name leaves nothing usable.</li>
+<li><code>unique_path(path)</code>, <code>unique_stem(folder, stem, endings)</code> — a repeat run is <code> (2)</code>, never an overwrite.</li>
+<li><code>safe_folder_name(name)</code>, <code>recording_folder_name(source_path)</code>.</li>
+</ul>
+<hr>
+<h2 id="markers">Markers</h2>
+<p><code>markers.py</code>: how a marker is named and grouped, shared by every analysis that
+works per event so they all agree. A marker is a dict with <code>time</code> (s) and
+<code>label</code>; TDT&#39;s own carry <code>store</code> (the epoc store&#39;s id) and, for onset/offset
+pairs, <code>phase</code> (<code>&quot;high&quot;</code> / <code>&quot;low&quot;</code>).</p>
+<ul>
+<li><code>store_display_name(store_id, store_labels=None) -&gt; str</code> — the renamed name
+(<code>store_labels</code> = <code>{store id: shown name}</code>) or the id itself.</li>
+<li><code>marker_display_label(marker, store_labels=None) -&gt; str</code> — the text to show:
+an onset/offset marker gets its store&#39;s (renamed) name plus <code>¹</code> (<code>PHASE_SUFFIX[&quot;high&quot;]</code>)
+or <code>⁰</code>; anything else (a <code>Note</code>, a hand-placed marker) keeps its own label, so
+renaming a store never clobbers a note that shares its store id.</li>
+<li><code>group_markers_by_name(cache, store_labels=None) -&gt; dict</code> — <code>{display name: [sorted event times]}</code> over <code>cache[&quot;detected_markers&quot;]</code> and <code>cache[&quot;markers&quot;]</code>,
+deduped by <code>(name, time)</code>. High and low phases are separate names.</li>
+</ul>
+<hr>
+<h2 id="group-analysis">Group analysis</h2>
+<p>The same event-locked responses measured in every recording of a group,
+reduced to a few numbers per trial, and compared with a linear mixed-effects
+model. Every recording is one subject; the variables are event markers; a
+trial is one occurrence of a marker.</p>
+<h3 id="groupspec"><code>GroupSpec</code></h3>
+<p>A dataclass holding everything decided for one group analysis. It
+round-trips through JSON with <code>to_dict()</code> / <code>GroupSpec.from_dict(d)</code>.</p>
+<table>
+<thead>
+<tr>
+<th>field</th>
+<th>default</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>group_name</code></td>
+<td><code>&quot;&quot;</code></td>
+<td>the group&#39;s name (its results folder is named after it)</td>
+</tr>
+<tr>
+<td><code>subjects</code></td>
+<td><code>[]</code></td>
+<td><code>[{&quot;subject&quot;: name, &quot;folder&quot;: path}, ...]</code>, names unique</td>
+</tr>
+<tr>
+<td><code>markers</code></td>
+<td><code>[]</code></td>
+<td>marker names, as PyAT lists them (a store&#39;s name plus <code>¹</code> for onset or <code>⁰</code> for offset, or a note&#39;s own text)</td>
+</tr>
+<tr>
+<td><code>store_labels</code></td>
+<td><code>{}</code></td>
+<td>store renames in effect when the markers were listed</td>
+</tr>
+<tr>
+<td><code>pre</code>, <code>post</code></td>
+<td><code>10.0</code>, <code>10.0</code></td>
+<td>seconds before / after each event</td>
+</tr>
+<tr>
+<td><code>baseline</code></td>
+<td><code>(-10.0, -6.0)</code></td>
+<td>baseline window, seconds relative to the event</td>
+</tr>
+<tr>
+<td><code>response</code></td>
+<td><code>(0.0, 10.0)</code></td>
+<td>response window, seconds relative to the event</td>
+</tr>
+<tr>
+<td><code>signal</code></td>
+<td><code>&quot;dff&quot;</code></td>
+<td><code>&quot;dff&quot;</code>: trial minus its baseline mean; <code>&quot;zscore&quot;</code>: also divided by the baseline SD</td>
+</tr>
+<tr>
+<td><code>smooth_seconds</code></td>
+<td><code>0.5</code></td>
+<td>moving-average smoothing before slicing (0 = none); 0.5 matches the single-recording Event PETH</td>
+</tr>
+<tr>
+<td><code>metrics</code></td>
+<td>all five</td>
+<td><code>&quot;auc&quot;</code>, <code>&quot;peak&quot;</code>, <code>&quot;mean&quot;</code>, <code>&quot;latency&quot;</code>, <code>&quot;decay&quot;</code></td>
+</tr>
+<tr>
+<td><code>peak_direction</code></td>
+<td><code>&quot;absolute&quot;</code></td>
+<td><code>&quot;positive&quot;</code>, <code>&quot;negative&quot;</code> or <code>&quot;absolute&quot;</code> (largest deflection either way, signed)</td>
+</tr>
+<tr>
+<td><code>decay_fraction</code></td>
+<td><code>0.5</code></td>
+<td>decay time counts until the trace falls to this share of the peak</td>
+</tr>
+<tr>
+<td><code>correction</code></td>
+<td><code>&quot;holm&quot;</code></td>
+<td>multiple-comparison correction across pairwise comparisons: <code>&quot;holm&quot;</code>, <code>&quot;bonferroni&quot;</code> or <code>&quot;fdr_bh&quot;</code></td>
+</tr>
+<tr>
+<td><code>alpha</code></td>
+<td><code>0.05</code></td>
+<td>significance level a corrected p-value is compared against</td>
+</tr>
+<tr>
+<td><code>regression_method</code></td>
+<td><code>&quot;ols&quot;</code></td>
+<td>motion correction used when each recording&#39;s ΔF/F is recomputed</td>
+</tr>
+</tbody></table>
+<p>The defaults follow TDT&#39;s own fiber photometry epoch-averaging example
+(<code>TRANGE = [-10, 20]</code> there is start and <em>duration</em>: −10 s to +10 s; baseline
+−10 to −6 s). There is no formal standard; GuPPy and pMAT leave the window
+and baseline to the user.</p>
+<p><code>problems()</code> returns every reason the spec is unusable as plain sentences
+(empty list = fine); <code>window_problems()</code> returns only the rules for the
+window, baseline and response windows.</p>
+<h3 id="marker_indexscans---dict"><code>marker_index(scans) -&gt; dict</code></h3>
+<p>Which markers the recordings have. <code>scans</code> is a list of <code>{&quot;subject&quot;, &quot;groups&quot;: {marker name: [event times]}}</code>. <strong>Returns</strong> <code>{marker: {&quot;recordings&quot;, &quot;events&quot;, &quot;per_subject&quot;: {subject: n}}}</code>; a recording with
+no event of a marker is not counted for it.</p>
+<h3 id="common_markersscans---liststr"><code>common_markers(scans) -&gt; list[str]</code></h3>
+<p>The marker names every one of the recordings has at least one event of, sorted.</p>
+<h3 id="design_summaryscans-markers-pre-post---dict"><code>design_summary(scans, markers, pre, post) -&gt; dict</code></h3>
+<p>Trials per subject and marker, worked out from the event times alone. A
+trial is <em>usable</em> if its whole window <code>[event − pre, event + post]</code> lies
+inside the recording (<code>scans[i][&quot;t_range&quot;]</code>, or unknown = all usable);
+trials <em>overlap</em> when their windows share samples (events less than
+<code>pre + post</code> apart), so trials of one subject are not independent of each
+other.</p>
+<p><strong>Returns</strong> <code>{&quot;cells&quot;: {subject: {marker: {&quot;events&quot;, &quot;usable&quot;, &quot;overlapping&quot;}}}, &quot;markers&quot;: {marker: {&quot;events&quot;, &quot;usable&quot;, &quot;overlapping&quot;, &quot;subjects_with_trials&quot;, &quot;min_usable&quot;, &quot;max_usable&quot;}}, &quot;n_subjects&quot;, &quot;warnings&quot;: [{&quot;level&quot;: &quot;warning&quot; | &quot;info&quot;, &quot;text&quot;}]}</code>. The warnings cover
+subjects with no usable trials, heavy overlap, and too few subjects for a
+mixed model (under 6) or for its p-values to be more than approximate
+(under 20).</p>
+<h3 id="extract_group_trialsx-y-events-spec-subject-recording-trace_step004---dict"><code>extract_group_trials(x, y, events, spec, subject, recording=&quot;&quot;, trace_step=0.04) -&gt; dict</code></h3>
+<p>Slices one recording into trials and measures each. <code>x</code>/<code>y</code> are the recording&#39;s
+time axis and dF/F (smoothed here with <code>spec.smooth_seconds</code>); <code>events</code> is
+<code>{marker name: [event times]}</code>, only the markers in <code>spec.markers</code> are used.</p>
+<p>A trial is usable if its whole window lies inside the recording; each usable
+trial&#39;s baseline-corrected trace (see <code>GroupSpec.signal</code>) is reduced to the
+five measures (<code>measures_for_trial</code>) unless the baseline can&#39;t be scored (a
+flat z-score baseline) or the window holds non-finite samples -- a trial that
+can&#39;t be measured still gets a row, with <code>valid=False</code> and a <code>reason</code>.</p>
+<p><strong>Returns</strong> <code>{&quot;trials&quot;: DataFrame (one row per usable trial; columns: group, subject, recording, marker, trial, event_time, valid, reason, auc, peak, mean, latency, decay, baseline_mean, baseline_sd, n_samples, overlap), &quot;traces&quot;: {marker: {&quot;n&quot;, &quot;mean&quot;}} (the mean baseline-corrected trace on </code>grid<code>), &quot;grid&quot;: the common time axis (-pre..+post, spaced </code>trace_step<code> apart), &quot;excluded&quot;: {marker: events left out for not having a full window}}</code>.</p>
+<h3 id="measures_for_trialrel_t-y-spec---dict--none"><code>measures_for_trial(rel_t, y, spec) -&gt; dict | None</code></h3>
+<p>The five measures of one already baseline-corrected trial (<code>rel_t</code> seconds
+relative to the event, <code>y</code> the trace). Uses <code>spec.response</code>, <code>spec.peak_direction</code>
+and <code>spec.decay_fraction</code>. <strong>Returns</strong> <code>{&quot;auc&quot;, &quot;peak&quot;, &quot;mean&quot;, &quot;latency&quot;, &quot;decay&quot;}</code>, or <code>None</code> if the response window holds fewer than 2 samples.</p>
+<h3 id="decay_timet-y-peak_index-fraction---float"><code>decay_time(t, y, peak_index, fraction) -&gt; float</code></h3>
+<p>Seconds from <code>y[peak_index]</code> until the trace has fallen to <code>fraction</code> of it
+(by linear interpolation between the two samples either side of the
+crossing) -- a positive peak falls, a negative one (a dip) climbs back.
+<code>nan</code> if it never gets there, or the peak itself is 0.</p>
+<h3 id="fit_group_modelstrials-spec-progressnone-tracesnone-trace_gridnone-excludednone---groupresults"><code>fit_group_models(trials, spec, progress=None, traces=None, trace_grid=None, excluded=None) -&gt; GroupResults</code></h3>
+<p>Descriptives, linear mixed-effects models and pairwise comparisons for every
+measure in <code>spec.metrics</code>, on the trial table from <code>extract_group_trials</code>
+(every subject&#39;s trials concatenated).</p>
+<p>For each measure, twice: <strong>trials</strong> -- every trial is a row; two or more
+markers fit <code>measure ~ marker</code> with a random intercept for subject and one
+for each subject x marker cell (statsmodels <code>MixedLM</code>, REML); one marker
+fits <code>measure ~ 1</code> with a subject random intercept. <strong>means</strong> -- the same on
+subject x marker means, which does not rely on trials being independent, as
+a check. p-values use subject-based degrees of freedom (n - 1 for a
+contrast, like a paired test; (k - 1)(n - 1) for the omnibus F test of
+marker, as in repeated-measures ANOVA) rather than statsmodels&#39; own Wald z,
+which assumes many subjects. With two or more markers, every pairwise
+comparison between markers is corrected (<code>spec.correction</code>); with one there
+is nothing to compare it with, so AUC and mean amplitude are tested against
+zero (a baseline-corrected trace has mean zero without a response) and the
+others (peak, latency, decay -- no zero to test) are reported as estimates
+with 95% intervals only.</p>
+<p>Why the subject x marker term: trials of one subject and marker share an
+effect of their own, and neighbouring trials share signal when their
+windows overlap. Simulated cohorts with no true difference between markers
+(three markers, 40 trials per cell, 6-20 subjects, with and without
+correlated trials) found a random-intercept-only model called it
+significant in 65-93% of runs at a nominal 5% whenever trials were
+correlated within a cell; the model used here, and repeated-measures ANOVA
+on the cell means, both landed at 4-8%.</p>
+<p><strong>Returns</strong> a <code>GroupResults</code> (a dataclass): <code>trials</code>, <code>traces</code>, <code>trace_grid</code>,
+<code>excluded</code> (carried through unchanged), <code>descriptives</code>, <code>subject_means</code>,
+<code>models</code>, <code>fixed_effects</code>, <code>omnibus</code>, <code>variance</code>, <code>estimated_means</code>,
+<code>pairwise</code>, <code>diagnostics</code>, <code>random_effects</code> (all <code>pandas.DataFrame</code>),
+<code>notes</code> (<code>[{&quot;level&quot;, &quot;measure&quot;, &quot;text&quot;}]</code> -- dropped markers, boundary
+fits, undefined measures, a warning when the trial-level model and the
+subject-means check disagree about significance), <code>software</code> (library
+versions). <code>.frames()</code> returns <code>{name: DataFrame}</code> for every table.</p>
+<h3 id="write_group_resultsresults-directory---liststr"><code>write_group_results(results, directory) -&gt; list[str]</code></h3>
+<p>Writes every non-empty table in <code>results.frames()</code> (plus the mean traces
+and <code>report_text(results)</code>) as UTF-8-with-BOM files into <code>directory</code>
+(created if needed) -- CSVs readable by Excel and pandas alike, and
+<code>analysis_report.txt</code>, and <code>analysis_notes.json</code> (the notes and software, which
+no table holds: <code>read_group_notes(directory)</code> reads them back). The file each
+table goes to is <code>analysis.group.report.TABLE_FILES</code>; the columns of each that are
+always there are <code>GROUP_TABLES</code> -- both in the engine&#39;s contract (<code>outputs</code>).
+<strong>Returns</strong> the paths written.</p>
+<h3 id="group_report_textresults---str"><code>group_report_text(results) -&gt; str</code></h3>
+<p>The plain-text report <code>write_group_results</code> writes to
+<code>analysis_report.txt</code>: the design, the results per measure (with the
+notes), and an auto-written methods paragraph to adapt for a manuscript.</p>
+<h3 id="scan_recordingsfolders-base_path-store_labelsnone-progressnone---listdict"><code>scan_recordings(folders, base_path, store_labels=None, progress=None) -&gt; list[dict]</code></h3>
+<h3 id="scan_recordingfolder-base_path-store_labelsnone-progressnone---dict"><code>scan_recording(folder, base_path, store_labels=None, progress=None) -&gt; dict</code></h3>
+<p>What each recording contains, without processing its signal (about a third of a
+second per block): its events grouped by name (<code>group_markers_by_name</code>, with
+its saved splices applied and its saved markers added), its length, and what it
+saved. One dict per recording: <code>folder</code>, <code>name</code>, <code>label</code> (path from
+<code>base_path</code>), <code>groups</code>, <code>t_range</code>, <code>n_events</code>, <code>n_splices</code> (applied),
+<code>n_splices_saved</code>, <code>n_saved_markers</code>, <code>block_name</code>, <code>start_time</code>, <code>warnings</code>, and
+<code>error</code> (<code>None</code>, or why it could not be read at all). A recording that fails comes
+back with its <code>error</code> set; it never stops the others.</p>
+<h3 id="default_subject_namesfolders-base_path---liststr"><code>default_subject_names(folders, base_path) -&gt; list[str]</code></h3>
+<p>Each recording&#39;s folder name; two that share one get their path from <code>base_path</code>
+on, so names start out unique.</p>
+<h3 id="load_group_recordingfolder-regression_methodols-store_labelsnone-progressnone---dict"><code>load_group_recording(folder, regression_method=&quot;ols&quot;, store_labels=None, progress=None) -&gt; dict</code></h3>
+<p>One recording exactly as the single-recording analyses see it:
+<code>load_tdt_recording</code>, reduced to <code>{&quot;x&quot;, &quot;y&quot;, &quot;fs&quot;, &quot;groups&quot;, &quot;n_splices&quot;, &quot;warnings&quot;}</code> — <code>y</code> the normalized dF/F, <code>groups</code> the events by name.</p>
+<h3 id="run_group_analysisspec-out_dirnone-progressnone-loadload_group_recording-extra_writers---groupresults"><code>run_group_analysis(spec, out_dir=None, progress=None, load=load_group_recording, extra_writers=()) -&gt; GroupResults</code></h3>
+<p>The whole analysis, headless: each recording of <code>spec.subjects</code> is loaded (one at
+a time, so a large group never holds more than one signal), its trials cut and
+measured (<code>extract_group_trials</code>), the models fitted on all of them
+(<code>fit_group_models</code>). With <code>out_dir</code> the tables and the report are written there
+(<code>write_group_results</code>), then each of <code>extra_writers</code> — callables
+<code>f(results, out_dir) -&gt; list of paths written</code> — runs; the app draws and saves its
+figures this way, since this library has no plotting. <code>load</code> is the hook that lets
+the analysis run on stand-in recordings. Raises <code>RuntimeError</code> naming the subject
+and folder if a recording cannot be loaded: leaving one out silently would change
+the group.</p>
+<h3 id="write_group_settingsgroup_dir-spec-scans-appnone---str"><code>write_group_settings(group_dir, spec, scans, app=None) -&gt; str</code></h3>
+<h3 id="read_group_settingspath---groupspec-dict"><code>read_group_settings(path) -&gt; (GroupSpec, dict)</code></h3>
+<p><code>analysis_settings.json</code> (<code>GROUP_SETTINGS_FILENAME</code>) is what makes a group analysis
+repeatable: the spec, a summary of each recording used, when it was written, and
+the program and library versions that wrote it. <code>app</code> names the program, e.g.
+<code>{&quot;name&quot;: &quot;PyAT&quot;, &quot;version&quot;: &quot;3.2.0&quot;}</code>. <code>read_group_settings</code> takes the file or
+its folder and returns the <code>GroupSpec</code> and the whole document, so a saved analysis
+runs again with <code>run_group_analysis(read_group_settings(folder)[0])</code>.</p>
+<hr>
+<h2 id="curve-fit-models">Curve-fit models</h2>
+<p>All follow <code>f(x, *params) -&gt; y</code>, ready to pass straight into
+<code>fit_model_to_segment</code>.</p>
+<table>
+<thead>
+<tr>
+<th>function</th>
+<th>formula</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>linear_model(x, m, b)</code></td>
+<td><code>y = m*x + b</code></td>
+</tr>
+<tr>
+<td><code>single_exponential_model(x, a, b, c)</code></td>
+<td><code>y = a*exp(-b*x) + c</code></td>
+</tr>
+<tr>
+<td><code>double_exponential_model(x, a, b, c, d, k)</code></td>
+<td><code>y = a*exp(-b*x) + c*exp(-d*x) + k</code> — physical bleaching model</td>
+</tr>
+<tr>
+<td><code>exponential_rise_model(x, a, b, c)</code></td>
+<td><code>y = a*(1 - exp(-b*x)) + c</code> — e.g. venous occlusion</td>
+</tr>
+<tr>
+<td><code>gaussian_model(x, a, mu, sigma)</code></td>
+<td><code>y = a*exp(-(x-mu)^2 / (2*sigma^2))</code></td>
+</tr>
+<tr>
+<td><code>sinusoidal_model(x, a, f, phi, c)</code></td>
+<td><code>y = a*sin(2*pi*f*x + phi) + c</code></td>
+</tr>
+<tr>
+<td><code>visibility_model(beta, a, v, beta_c, period)</code></td>
+<td><code>y = (a/2) * (1 - v*sin((beta - beta_c) / period))</code> — photon-entanglement visibility</td>
+</tr>
+</tbody></table>
+<h3 id="curve_fit_models"><code>CURVE_FIT_MODELS</code></h3>
+<p>The registry PyAT&#39;s Curve Fit tool lists, and scripts can use the same way:
+<code>{display name: (model_fn, p0_fn, [parameter names])}</code>, where <code>p0_fn(x_seg, y_seg)</code>
+returns the starting guess for <code>curve_fit</code>.</p>
+<pre><code class="language-python">model_fn, p0_fn, names = pl.CURVE_FIT_MODELS[&quot;Exponential Decay  (a*e^(-bx) + c)&quot;]
+fit = pl.fit_model_to_segment(x_seg, y_seg, model_fn, p0_fn)
+dict(zip(names, fit[&quot;popt&quot;])), fit[&quot;r2&quot;]
+</code></pre>
+<p>The entries are <code>Linear</code>, <code>Exponential Decay</code>, <code>Exponential Rise</code>, <code>Gaussian</code>,
+<code>Sinusoidal</code> and <code>Double Exponential</code> (the display names carry their formulas; take
+them from <code>CURVE_FIT_MODELS.keys()</code>). The starting guesses suit typical shapes: the
+sinusoid&#39;s, for one, starts at 1 Hz, so it finds a signal only if the phase it drifts
+from that guess across the segment stays small. <code>visibility_model</code> is not registered.</p>
+<hr>
+<h2 id="running-analyses-by-name">Running analyses by name</h2>
+<p><code>analyses.py</code> is every analysis PyAT offers, as a function of a recording and a plain
+parameter dict. The app, a script, the <a href="#command-line">command line</a> and a replay from a
+<a href="#provenance-records">provenance record</a> all call it, so all four give the same numbers.
+Each result table has the same columns, in the same order, as the CSV the app exports for
+that analysis, so a script&#39;s output can be compared with an export column for column.</p>
+<pre><code class="language-python">import PyATCLI as pl
+
+cache = pl.load_recording(&quot;D:/rats/Rat7-250101&quot;)[&quot;cache&quot;]
+result = pl.run_analysis(&quot;event_peth&quot;, cache, {&quot;event&quot;: &quot;L1P¹&quot;, &quot;pre_s&quot;: 10, &quot;post_s&quot;: 20})
+result.tables[&quot;mean_sem&quot;]       # a DataFrame: time_from_event_s, mean, sem
+result.parameters               # the parameters as run, defaults filled in
+result.summary                  # a few numbers (n_trials, group_peak, ...)
+</code></pre>
+<h3 id="run_analysiskind-cache-parametersnone--store_labelsnone-progressnone---analysisresult"><code>run_analysis(kind, cache, parameters=None, *, store_labels=None, progress=None) -&gt; AnalysisResult</code></h3>
+<p>Runs one analysis. <code>cache</code> is a recording as <code>recording.py</code> builds it
+(<code>load_recording(...)[&quot;cache&quot;]</code>, <code>make_oxysoft_cache</code>, ...). <code>parameters</code> is a dict;
+anything left out takes its default. <code>store_labels</code> is <code>{store id: shown name}</code>, the
+renames the app applies to event names. <code>ParameterError</code> (a <code>ValueError</code>) if a parameter
+is missing, unknown or unusable; <code>AnalysisError</code> if the parameters were fine but the
+recording does not hold enough to run the analysis (a window past the end, an event with
+no usable trial).</p>
+<h3 id="analysisresult"><code>AnalysisResult</code></h3>
+<p>A dataclass: <code>kind</code>, <code>parameters</code> (as run, defaults filled in, with anything the analysis
+resolved from the recording, such as an event&#39;s times, written out — this is what a
+provenance record stores), <code>tables</code> (<code>{name: DataFrame}</code>), <code>summary</code> (<code>dict</code>) and <code>notes</code>
+(<code>list[str]</code>, things worth knowing such as skipped events).</p>
+<h3 id="kinds---tuple-and-describe_kinds---dict"><code>kinds() -&gt; tuple</code> and <code>describe_kinds() -&gt; dict</code></h3>
+<p><code>kinds()</code> lists the analyses; <code>describe_kinds()</code> returns
+<code>{kind: {&quot;summary&quot;, &quot;parameters&quot;: [{&quot;name&quot;, &quot;type&quot;, &quot;default&quot;, &quot;required&quot;, &quot;doc&quot;, &quot;choices&quot;}]}}</code>
+for help text. <code>normalize_parameters(kind, parameters=None) -&gt; dict</code> checks a parameter
+dict and fills in the defaults without running anything.</p>
+<table>
+<thead>
+<tr>
+<th>kind</th>
+<th>what it is</th>
+<th>tables</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>zscore_window</code></td>
+<td>z-score a window around one time against its own pre-event baseline</td>
+<td><code>window</code></td>
+</tr>
+<tr>
+<td><code>auc_window</code></td>
+<td>area under the curve in a window, split by sign</td>
+<td><code>auc</code></td>
+</tr>
+<tr>
+<td><code>fft_window</code></td>
+<td>power spectrum of a window and its top peaks</td>
+<td><code>peaks</code></td>
+</tr>
+<tr>
+<td><code>curve_fit</code></td>
+<td>fit a model to the stretch between two times</td>
+<td><code>fit</code></td>
+</tr>
+<tr>
+<td><code>event_peth</code></td>
+<td>every occurrence of one event aligned to it: trials, mean/SEM, AUC, peak, time bins</td>
+<td><code>zscore</code>, <code>mean_sem</code>, <code>trials</code>, <code>auc</code>, <code>peak</code>, <code>bins</code></td>
+</tr>
+<tr>
+<td><code>peak_finder</code></td>
+<td>statistically significant peaks: whole recording, or near events</td>
+<td><code>peaks</code> / <code>alignment</code> / <code>scan</code> by <code>scope</code></td>
+</tr>
+<tr>
+<td><code>event_intervals</code></td>
+<td>the time between markers</td>
+<td><code>intervals</code></td>
+</tr>
+<tr>
+<td><code>process</code></td>
+<td>the processed traces themselves (dF/F and the raw channels)</td>
+<td><code>trace</code></td>
+</tr>
+</tbody></table>
+<p><code>python -m PyATCLI kinds</code> prints every parameter of each. The signal-taking
+analyses take <code>signal</code> (<code>normalized</code> by default; for TDT also <code>main_driver</code>,
+<code>isosbestic</code>).</p>
+<p>Group analysis is the one analysis that is not a function of one recording; it runs from
+a <code>GroupSpec</code> over several (see <a href="#group-analysis">Group analysis</a>,
+<code>run_group_analysis</code>, and <code>python -m PyATCLI group</code>). It appears in provenance
+records as the kind <code>group_analysis</code>.</p>
+<hr>
+<h2 id="provenance-records">Provenance records</h2>
+<p>How a result was produced, as data. PyAT writes <code>&lt;export name&gt;.provenance.json</code> beside
+every export (Options can turn that off), and <code>python -m PyATCLI run</code> writes one
+beside its tables. With the record and the recording, the analysis can be run again
+(<a href="#reproducing-a-result">Reproducing a result</a>).</p>
+<p>A record is a plain JSON-able dict:</p>
+<table>
+<thead>
+<tr>
+<th>key</th>
+<th>contents</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>schema</code></td>
+<td><code>PROVENANCE_SCHEMA_VERSION</code>, the layout version</td>
+</tr>
+<tr>
+<td><code>kind</code></td>
+<td>what was produced: an analysis kind, <code>group_analysis</code>, <code>figure</code>, <code>table</code></td>
+</tr>
+<tr>
+<td><code>created</code></td>
+<td>ISO date-time</td>
+</tr>
+<tr>
+<td><code>software</code></td>
+<td><code>software_versions()</code>: this library, Python, platform, the numerical packages, the app (name, version)</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td><code>file_fingerprint()</code> of the recording&#39;s folder/file: names, sizes, SHA-256 of files up to 16 MB, a <code>digest</code></td>
+</tr>
+<tr>
+<td><code>recording</code></td>
+<td><code>recording_state()</code>: its type and length, motion-correction method, every splice in order, marker counts and digests, store renames, signal names</td>
+</tr>
+<tr>
+<td><code>pipeline</code></td>
+<td><code>pipeline_parameters()</code>: what the processing does that no caller chose (filter, bleaching model, motion-correction settings, z-score baseline rule), read from the constants the code uses</td>
+</tr>
+<tr>
+<td><code>analysis</code></td>
+<td><code>{&quot;type&quot;: kind, &quot;parameters&quot;: {...}}</code> — what was asked</td>
+</tr>
+<tr>
+<td><code>outputs</code></td>
+<td>each file written, with size and SHA-256</td>
+</tr>
+<tr>
+<td><code>notes</code></td>
+<td>sentences: how a figure was exported, which labels were edited</td>
+</tr>
+</tbody></table>
+<p>A record holds names, counts, event times, parameters and hashes — never recording
+<em>data</em> (no samples, no trace values). File paths are in it, since they are what lets the
+analysis be run again; <code>file_fingerprint(path, portable=True)</code> leaves the absolute path
+out for a record that will leave the machine.</p>
+<ul>
+<li><code>software_versions(app=None, packages=PACKAGES) -&gt; dict</code> — what is running; never raises.
+<code>library_version()</code> is this library&#39;s running version (a source checkout reports its own
+<code>pyproject.toml</code> version rather than a stale editable-install one).</li>
+<li><code>check_environment(record) -&gt; list[str]</code> — sentences for the differences between the
+software a record was made with and what runs now that could matter: another library
+version, another Python minor version, another major.minor of numpy/scipy/pandas/
+statsmodels/scikit-learn. <code>[]</code> if none.</li>
+<li><code>pipeline_parameters(regression_method=&quot;ols&quot;) -&gt; dict</code>.</li>
+<li><code>file_fingerprint(path, max_files=200, portable=False) -&gt; dict</code>.</li>
+<li><code>markers_summary(markers, detected_markers=None) -&gt; dict</code> — counts and digests, so a
+record can say which markers an analysis saw without holding them.</li>
+<li><code>recording_state(cache, regression_method=None, splices=(), store_labels=None, signal=None) -&gt; dict</code>.</li>
+<li><code>build_record(kind, parameters=None, *, source=None, recording=None, pipeline=None, app=None, outputs=None, notes=None, now=None) -&gt; dict</code>
+— <code>source</code> is a path (fingerprinted here) or a fingerprint dict; <code>outputs</code> file paths or
+entries (<code>output_entry(path)</code>); empty sections are left out.</li>
+<li><code>sidecar_path_for(export_path) -&gt; str</code> — <code>Event PETH.png</code> -&gt; <code>Event PETH.provenance.json</code>.</li>
+<li><code>write_record(path, record) -&gt; str</code> and <code>read_record(path) -&gt; dict</code> (<code>ValueError</code> if the
+file is not a record or is from a newer layout than this library reads).</li>
+</ul>
+<pre><code class="language-python">from PyATCLI import provenance as pv
+
+rec = pv.build_record(&quot;event_peth&quot;, result.parameters,
+                      source=&quot;D:/rats/Rat7-250101&quot;,
+                      recording=pv.recording_state(cache, regression_method=&quot;ols&quot;),
+                      pipeline=pv.pipeline_parameters(&quot;ols&quot;),
+                      outputs=[&quot;out/event_peth_zscore.csv&quot;])
+pv.write_record(&quot;out/event_peth.provenance.json&quot;, rec)
+</code></pre>
+<hr>
+<h2 id="reproducing-a-result">Reproducing a result</h2>
+<p><code>reproduce.py</code> runs an analysis again from its provenance record and says whether the
+numbers come out the same. (<code>PyATCLI.reproduce</code> is the module; the function is
+exported at top level as <code>reproduce_record</code>.)</p>
+<pre><code class="language-python">rep = pl.reproduce_record(&quot;Event PETH_L1P_103522.provenance.json&quot;,
+                          out_dir=&quot;again&quot;, compare=[&quot;Event PETH_L1P_103522.csv&quot;])
+rep.ok            # True if every compared export matches
+rep.warnings      # the recording changed since, a different numpy, ...
+rep.result.tables # the analysis&#39;s tables, as run now
+rep.comparisons   # per export: ok, message, max_abs_diff, cells, table
+</code></pre>
+<p>In order: it reads the record; notes whether the software differs from what produced it;
+finds the recording (the path the record holds, or <code>recording=</code>) and checks it is the
+same one by its fingerprint; rebuilds it in exactly the state recorded — motion-correction
+method, every splice, store renames, signal names — which is not necessarily the state its
+<code>JSON saves/</code> folder is in now; runs the analysis with exactly the recorded parameters (for
+an event analysis that includes the event times themselves, so the markers no longer
+matter); writes the tables and a new record if <code>out_dir</code> is given; and compares any exports
+you name, column for column.</p>
+<h3 id="reproduce_recordrecord-recordingnone-out_dirnone-compare-tolerance1e-4-strictfalse-progressnone-roundednone---reproduction"><code>reproduce_record(record, recording=None, out_dir=None, compare=(), tolerance=1e-4, strict=False, progress=None, rounded=None) -&gt; Reproduction</code></h3>
+<p><code>record</code> is the record dict or the path of its <code>.provenance.json</code>. <code>compare</code> lists
+exports to check against: a path, or <code>(path, table name)</code>; which table is found from the
+CSV&#39;s own header when not named. With <code>strict=True</code> a recording or software that differs
+from the recorded one raises <code>ReproduceError</code> instead of being reported in <code>warnings</code>.
+<code>ReproduceError</code> also covers a record that is not an analysis, or a recording that cannot
+be found.</p>
+<p><code>rounded</code> says whether the exports were written with numbers rounded to a fixed number of
+digits; <code>None</code> decides from the record (PyAT&#39;s exports are, the command line&#39;s are not).</p>
+<h3 id="compare_tableexpected_path-table-tolerance1e-4-roundedfalse---dict"><code>compare_table(expected_path, table, tolerance=1e-4, rounded=False) -&gt; dict</code></h3>
+<p>Compares a CSV with a DataFrame, column for column. A number matches if
+<code>|a - b| &lt;= tolerance * (1 + |b|)</code>; with <code>rounded=True</code> it also matches if it is within the
+rounding its own text shows (an export that wrote <code>13.8</code> for <code>13.846</code> agrees to the one
+decimal it kept, while a whole number in it — a trial number, a count — must still be
+exact). Everything else is compared as text, ignoring case; blank and missing are the same.
+Returns <code>{&quot;file&quot;, &quot;ok&quot;, &quot;message&quot;, &quot;max_abs_diff&quot;, &quot;cells&quot;}</code>.</p>
+<h3 id="reproduction"><code>Reproduction</code></h3>
+<p>A dataclass: <code>record</code>, <code>result</code> (an <code>AnalysisResult</code>), <code>warnings</code>, <code>written</code> (paths),
+<code>comparisons</code>; the property <code>ok</code> is true if nothing was compared or everything matched.</p>
+<hr>
+<h2 id="command-line">Command line</h2>
+<p><code>python -m PyATCLI &lt;command&gt;</code> (and the <code>pyatcli</code> command pip installs) is a
+thin wrapper over the functions above; the app calls the same ones, which is why the
+numbers agree.</p>
+<table>
+<thead>
+<tr>
+<th>command</th>
+<th>does</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>info</code></td>
+<td>versions of this library, Python and the numerical packages — what a result would be stamped with</td>
+</tr>
+<tr>
+<td><code>kinds [KIND]</code></td>
+<td>the analyses and every parameter of each</td>
+</tr>
+<tr>
+<td><code>run KIND RECORDING [--param NAME=VALUE ...]</code></td>
+<td>run one analysis; writes CSV tables and a provenance record to <code>--out</code>, or under an Output folder with <code>--output-folder</code></td>
+</tr>
+<tr>
+<td><code>reproduce RECORD [--compare EXPORT.csv ...]</code></td>
+<td>run an analysis again from its <code>.provenance.json</code> and check the numbers</td>
+</tr>
+<tr>
+<td><code>batch JOBS.json</code></td>
+<td>many analyses over many recordings (a folder of TDT blocks counts as many)</td>
+</tr>
+<tr>
+<td><code>group setup FOLDER... --name N [--marker M ...]</code></td>
+<td>set up a group analysis as the wizard does: find the recordings, list the markers they share (without <code>--marker</code>), check the design, write <code>analysis_settings.json</code></td>
+</tr>
+<tr>
+<td><code>group run SETTINGS</code></td>
+<td>run a group analysis from its <code>analysis_settings.json</code> (or its folder): tables, a report and a record</td>
+</tr>
+<tr>
+<td><code>saved ACTION RECORDING ...</code></td>
+<td>what Save Changes saves, from a script: <code>show</code>, <code>marker</code>, <code>unmark</code>, <code>splice</code>, <code>unsplice</code>, <code>rename</code>, <code>highlight</code>, <code>text</code>, <code>clear</code></td>
+</tr>
+<tr>
+<td><code>serve</code></td>
+<td>the engine: these operations as JSON lines on standard input and output, with recordings kept open (what PyAT&#39;s window talks to; see <a href="#the-engine">The engine</a>)</td>
+</tr>
+<tr>
+<td><code>docs [--format markdown|man|contract]</code></td>
+<td>this command line&#39;s reference, generated from the program: <code>CLI_REFERENCE.md</code>, the man page <code>man/pyatcli.1</code>, or the engine&#39;s contract <code>ENGINE_CONTRACT.json</code></td>
+</tr>
+</tbody></table>
+<pre><code class="language-bash">python -m PyATCLI run event_peth &quot;D:/rats/Rat7-250101&quot; --param event=&quot;L1P¹&quot; --param pre_s=10 --param post_s=20 --out out
+python -m PyATCLI run zscore_window &quot;D:/rats/Rat7-250101&quot; --param center_s=312.5 --param signal=main_driver
+python -m PyATCLI reproduce &quot;out/Rat7_event_peth.provenance.json&quot; --compare &quot;out/Event PETH.csv&quot;
+python -m PyATCLI batch jobs.json --out batch-out
+</code></pre>
+<p>Options shared by <code>run</code>, <code>batch</code>: <code>--regression {ransac,huber,ols}</code> (TDT motion
+correction, default <code>ols</code>), <code>--no-saved</code> (ignore the recording&#39;s <code>JSON saves/</code>),
+<code>--table</code>, <code>--x</code>, <code>--y</code> (generic files); <code>run</code> also takes <code>--params FILE.json</code>
+(<code>--param</code> overrides it) and <code>--json</code> for a machine-readable summary. <code>reproduce</code> takes
+<code>--recording</code> (where the data is now), <code>--tolerance</code>, <code>--strict</code>, and <code>--rounded</code> /
+<code>--exact</code> (compare to the digits the export shows, or to the tolerance only).</p>
+<p><strong>Every command</strong> takes these, before or after its name: <code>--json</code> (the result as one JSON document on standard output),
+<code>--plain</code> (tab-separated rows and nothing else, for <code>cut</code>, <code>awk</code> or a spreadsheet; the two are mutually exclusive),
+<code>-q/--quiet</code> (only errors), <code>-v/--verbose</code> (repeat for more; also shows what libraries print), <code>-d/--debug</code> (the full
+traceback of an error; also set by <code>DEBUG=1</code>), <code>--no-input</code> (never ask a question: an action that needs a yes fails
+instead), <code>--events</code> (progress, warnings and notes as JSON lines on standard error, for a program driving this one) and
+<code>--progress</code> / <code>--no-progress</code> (a progress bar on standard error for slow steps: shown by default when it is a terminal).
+<code>-V/--version</code> prints the version. Run with no arguments, the program prints a short help (the commands and three
+examples); <code>-h/--help</code> of a command lists its options and its examples. A <code>-</code> where a file is expected means standard input
+(<code>run --params -</code>, <code>reproduce -</code>, <code>batch -</code>).</p>
+<p><strong>Output.</strong> Standard output is only ever the result. In <code>--json</code> it is one document,
+<code>{&quot;schema&quot;: 1, &quot;ok&quot;: true, &quot;command&quot;: &quot;run&quot;, &quot;result&quot;: {...}, &quot;warnings&quot;: [...]}</code> (NaN is <code>null</code>); warnings, progress and
+errors are on standard error, and anything a library prints on its own (the TDT SDK reports every block it opens) is dropped,
+so <code>... --json | jq</code> always sees valid JSON. A failure under <code>--json</code> is one line on standard error,
+<code>{&quot;schema&quot;: 1, &quot;ok&quot;: false, &quot;error&quot;: {&quot;code&quot;, &quot;message&quot;, &quot;hint&quot;, &quot;type&quot;}}</code>, with the code one of <code>bad_parameter</code>,
+<code>invalid_input</code>, <code>not_found</code>, <code>io_error</code>, <code>analysis_failed</code>, <code>cannot_reproduce</code>, <code>unknown_operation</code>, <code>no_recording</code>,
+<code>confirmation_required</code>, <code>cancelled</code>, <code>internal_error</code>; without it, <code>error: &lt;what is wrong&gt;</code> and, indented, what to do about
+it. A bug (an exception nobody expected) says so and what to report; <code>--debug</code> adds the traceback. Colour is never used.</p>
+<p><strong>Where results go.</strong> <code>run</code>, <code>batch</code>, <code>group run</code> and <code>group setup</code> take <code>--out DIR</code> (exactly there) or <code>--output-folder DIR</code> (the layout PyAT&#39;s exports use, see <a href="#output-folders">Output folders</a>: <code>DIR/&lt;data type&gt;/&lt;recording&gt; (Analysis)/</code>, <code>DIR/Group Analysis/&lt;group&gt;</code>; a repeat run is a new set of files, never an overwrite; <code>batch</code>&#39;s combined
+tables go to <code>DIR/Batch/&lt;NN_kind&gt;/</code>). The two are mutually exclusive. <code>group run SETTINGS --out DIR</code> leaves the settings
+beside the tables, so the folder says what it was made with and can be reproduced on its own.</p>
+<p><strong>The command line draws nothing.</strong> It computes and writes files — CSV tables, JSON records, the settings — and never makes a figure or opens a window; the
+engine (<code>serve</code>) is the same. Drawing is PyAT&#39;s: it draws from the same tables (the columns each analysis always returns are in <code>ENGINE_CONTRACT.json</code>),
+and saves its figures beside them. A script that wants a picture of a result plots the CSVs itself (<a href="#drawing-results">Drawing results</a>).</p>
+<p><code>saved</code> writes the files in a recording&#39;s <code>JSON saves/</code> folder (<a href="#writing-saved-state">Writing saved state</a>):
+<code>show [--json]</code>; <code>marker --time T [--label --color --fontsize]</code>; <code>unmark --time T [--tolerance --label]</code> (exit 1 if
+none was there); <code>splice --mode {cut_out,keep_inside} --start S --end E</code>; <code>unsplice N</code>; <code>rename KEY=NAME ...</code>;
+<code>highlight --start S --end E [--color]</code>; <code>text --x X --y Y --text T [--fontsize]</code>; <code>clear --yes</code> (without <code>--yes</code>
+nothing is deleted and it exits 2). A recording&#39;s own load options (<code>--regression</code>, <code>--table</code>, <code>--x</code>, <code>--y</code>) apply
+where it has to be opened.</p>
+<p><code>group setup</code> is the Hypothesis Testing wizard (it was <code>group-setup</code>, and <code>group SETTINGS</code> was <code>group run SETTINGS</code>: the old
+spellings still work and say so on standard error): <code>FOLDER...</code> are cohort folders (searched at any depth) or recordings;
+without <code>--marker</code> it lists the markers the recordings have (<code>*</code> = in every one), needs no destination, and exits 2; with markers it takes the
+wizard&#39;s choices (<code>--pre --post --baseline A B --response A B --signal --smooth --measure --peak-direction --decay-fraction --correction --alpha --regression --store-label ID=NAME --exclude SUBJECT</code>, defaults as the
+wizard&#39;s), prints the design warnings it shows, writes <code>analysis_settings.json</code> and, with <code>--run</code>, runs it. <code>group run SETTINGS</code> runs a settings file (or its folder) and writes its tables, its report and its record (it draws nothing: the app draws and saves the figures).</p>
+<p>A <code>batch</code> file is <code>{&quot;defaults&quot;: {&quot;regression_method&quot;, &quot;use_saved&quot;, &quot;parameters&quot;: {...}}, &quot;jobs&quot;: [{&quot;kind&quot;, &quot;recording&quot;, &quot;parameters&quot;}, ...]}</code>; each job writes one folder per
+recording and a combined <code>&lt;kind&gt;_&lt;table&gt;_all.csv</code> with a <code>recording</code> column.</p>
+<p>Exit status: <code>0</code> done; <code>1</code> something failed (the message is on stderr); <code>2</code> bad usage (an unknown flag, a missing argument,
+an action that needs a yes and was not given one: <code>saved clear</code> asks when it can, and without a terminal says to use <code>--yes</code>);
+<code>3</code> <code>reproduce</code> ran but an export did not match; <code>130</code> interrupted (Ctrl-C).</p>
+<p><strong>Documentation.</strong> <code>CLI_REFERENCE.md</code> (every command and option, generated) and the man page <code>man/pyatcli.1</code> are made by the
+program (<code>python -m PyATCLI docs --format markdown|man</code>), and a test regenerates both and fails if they differ from the
+committed files, so they cannot drift from what the program accepts. <code>man ./man/pyatcli.1</code> reads the page.</p>
+<p><strong>Environment.</strong> <code>DEBUG</code> (anything but <code>0</code>/<code>false</code>/<code>no</code>/<code>off</code>: the same as <code>--debug</code>); <code>NO_COLOR</code> is accepted and unused (there is no colour to turn off).
+The library keeps no configuration file and nothing between runs: no cache folder, no pointer to the last result.</p>
+<hr>
+<h2 id="operations-and-the-engine">Operations and the engine</h2>
+<p>Every command above is a thin front over an <strong>operation</strong> (<code>PyATCLI.ops</code>): a function of keyword parameters that
+returns a JSON-ready dict, registered with <code>@operation(name, summary)</code> and run with <code>ops.call(name, params, ctx)</code>. The command
+line parses arguments and renders the result (human, <code>--plain</code>, <code>--json</code>); the engine serves the same operations to a program
+over a pipe; because both are the same functions they cannot disagree. <code>ops.describe()</code> (or the <code>operations</code> operation) lists
+them with their parameters.</p>
+<table>
+<thead>
+<tr>
+<th>operation</th>
+<th>does</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>run</code>, <code>reproduce</code>, <code>batch</code></td>
+<td>the commands of the same name</td>
+</tr>
+<tr>
+<td><code>group.setup</code>, <code>group.run</code>, <code>group.scan</code></td>
+<td>the Hypothesis Testing wizard&#39;s steps; <code>group.scan</code> lists what each recording holds (markers, length, saved splices) without processing it</td>
+</tr>
+<tr>
+<td><code>saved.show</code>, <code>.marker</code>, <code>.unmark</code>, <code>.splice</code>, <code>.unsplice</code>, <code>.rename</code>, <code>.highlight</code>, <code>.text</code>, <code>.clear</code>, <code>.write</code></td>
+<td>what Save Changes saves (<code>write</code> replaces whole lists)</td>
+</tr>
+<tr>
+<td><code>recording.open</code>, <code>.view</code>, <code>.splice</code>, <code>.labels</code>, <code>.close</code>, <code>.list</code></td>
+<td>engine only: recordings held open between requests (below)</td>
+</tr>
+<tr>
+<td><code>compute.event_peth</code>, <code>compute.peaks</code></td>
+<td>the Event PETH window&#39;s trial matrix, and Peak Finder</td>
+</tr>
+<tr>
+<td><code>files.inspect</code>, <code>pt2.load</code></td>
+<td>what a path is (a TDT block, a folder with blocks under it, an Oxysoft export, a table file); a Terranova <code>.pt2</code> image as an <code>.npy</code> file</td>
+</tr>
+<tr>
+<td><code>provenance.write</code></td>
+<td>the provenance record beside an export (<code>&lt;export&gt;.provenance.json</code>)</td>
+</tr>
+<tr>
+<td><code>fieldstudy.fields</code>, <code>.run</code>, <code>.validate</code></td>
+<td>the text field study and its statistical validation (they embed text with a language model)</td>
+</tr>
+<tr>
+<td><code>file.tables</code></td>
+<td>the tables of a generic file: names, columns, sizes and first rows</td>
+</tr>
+<tr>
+<td><code>results.open</code></td>
+<td>what a results folder, a record or a table file holds (<code>open_results</code>, below): its kind, parameters, tables, notes and the files they came from</td>
+</tr>
+<tr>
+<td><code>info</code>, <code>kinds</code>, <code>operations</code></td>
+<td>what is installed, the analyses, the operations</td>
+</tr>
+</tbody></table>
+<p>An <code>OpError(message, code, hint)</code> is an expected failure; <code>ops.error_info(exc)</code> turns any exception into the record
+<code>{code, message, hint, type}</code> (a bug is <code>internal_error</code>), and <code>ops.to_jsonable</code> makes a result JSON (NaN becomes <code>null</code>).
+An operation receives an <code>OpContext</code> with <code>emit(event, **fields)</code> (progress, warnings, notes, files written), <code>cancelled()</code>,
+and, in the engine, the open <code>store</code> and a <code>data_dir</code>.</p>
+<h3 id="the-engine">The engine</h3>
+<p><code>python -m PyATCLI serve</code> is a long-lived process that speaks one JSON object per line on standard input and output.
+It exists so that a window need not import the numerical libraries (a second or two, and a lot of memory) or freeze while an
+analysis runs: PyAT starts it once and sends it requests. A request is <code>{&quot;id&quot;: 7, &quot;method&quot;: &quot;recording.open&quot;, &quot;params&quot;: {...}}</code>;
+the engine answers with <code>progress</code> events (<code>{&quot;id&quot;: 7, &quot;event&quot;: &quot;progress&quot;, &quot;fraction&quot;: 0.4, &quot;message&quot;: &quot;...&quot;}</code>, also <code>warning</code>
+and <code>note</code>) and then one <code>{&quot;id&quot;: 7, &quot;event&quot;: &quot;result&quot;, &quot;ok&quot;: true, &quot;result&quot;: {...}}</code> or <code>{&quot;id&quot;: 7, &quot;event&quot;: &quot;error&quot;, &quot;ok&quot;: false, &quot;error&quot;: {...}}</code>. On start it says <code>{&quot;event&quot;: &quot;ready&quot;, &quot;protocol&quot;: 1, &quot;library&quot;: ..., &quot;pid&quot;: ..., &quot;data_dir&quot;: ..., &quot;operations&quot;: [...]}</code>. <code>{&quot;cancel&quot;: 7}</code> stops request 7 at its next progress report (or before it starts: the request then
+fails with code <code>cancelled</code>); <code>{&quot;method&quot;: &quot;shutdown&quot;}</code>, or closing standard input, ends the process. Requests run one at a
+time, in the order they were sent. Standard output is protocol and nothing else (anything a library prints is dropped, or goes to
+standard error with <code>-v</code>).</p>
+<p><strong>Recordings stay open.</strong> <code>recording.open</code> reads a recording as the app does (saved splices replayed, saved markers,
+highlights, text boxes and signal names put on) and keeps it; <code>fresh: true</code> reads the disk again. Later requests name it as
+<code>{&quot;id&quot;: &quot;r1&quot;, &quot;splices&quot;: [...], &quot;markers&quot;: [...], &quot;signal_labels&quot;: {...}}</code> where an operation takes a <code>recording</code>: the
+markers (and highlights, text boxes, names) in the reference are the caller&#39;s own and are put on the recording for that request,
+so the engine never holds a second copy of a window&#39;s edits to keep in step. A <strong>splice is state</strong>: the engine keeps one variant
+of the recording per list of splices (the most recent few), so <code>recording.view</code> with an earlier list — Ctrl+Z, removing a splice,
+Restore Full Recording — costs nothing, and <code>recording.splice</code> stacks one more (a TDT splice re-fits the dF/F: seconds on a long
+recording) and hands back the caller&#39;s markers moved through it.</p>
+<p><strong>Arrays do not go through the pipe.</strong> A recording is a few kilobytes of structure and tens of megabytes of arrays (a 17-minute,
+three-signal TDT recording is 34 MB; as JSON text one trace is 44 MB and a second to parse). The structure is JSON; every array
+is written once as a <code>.npy</code> file in the engine&#39;s data folder and replaced, in the structure, by
+<code>{&quot;__array__&quot;: &quot;0003_signals.normalized.y.npy&quot;, &quot;dtype&quot;: &quot;float64&quot;, &quot;shape&quot;: [1055744]}</code>. <code>PyATCLI.engine.wire.decode</code>
+maps them back (<code>numpy.load(..., mmap_mode=&quot;c&quot;)</code>: nothing is read until it is touched and an edit stays in memory, never in the
+file), so a window can plot a million samples that never passed through a pipe; an array that two places of the structure share
+is one file and one array. Tables travel as their shapes (<code>tables: &quot;shapes&quot;</code>), inline (<code>&quot;inline&quot;</code>), or as CSV files (<code>&quot;files&quot;</code>).
+Closing a recording removes its files; the rest go when the engine exits.</p>
+<p><strong>The contract, and the protocol number.</strong> What a program using the engine can count on is written down in <code>ENGINE_CONTRACT.json</code>
+(generated: <code>python -m PyATCLI docs --format contract --out ENGINE_CONTRACT.json</code>): every operation with its parameters, and every
+analysis with its parameters, the tables it returns and the columns of each that are always there, and the tables written besides (<code>outputs</code>: a
+group analysis&#39;s folder, with the file each table goes to, and an Export View&#39;s tables). Read tables by column name, and count on those
+columns; a table may have more (a column per time bin or per signal) and more can appear at any time. The same is written down for what an
+operation returns (<code>result</code> in the contract: the keys of its answer that are always there; <code>PYATCLI_CHECK_RESULTS=1</code> makes the engine fail loudly
+when one is missing) and for a loaded recording (<code>PyATCLI.recording.CACHE_KEYS</code>: the keys of its <code>cache</code>, for a TDT, an Oxysoft or a generic
+recording). <code>ready</code> carries the protocol number
+(<code>PyATCLI.ops.PROTOCOL_VERSION</code>), which goes up when something a caller could rely on is removed or renamed — an operation or a parameter, a
+parameter that must now be given, an analysis, a choice of one, a table, a column that was always there — and not when something is added.
+<code>PyATCLI.engine.contract.breaking_changes(old, new)</code> says which changes count, and <code>tests/test_engine_contract.py</code> fails until the protocol is
+raised (and the new <code>tests/contracts/protocol_N.json</code> baseline added) when a change would break a caller. A program should compare the <code>protocol</code> of
+<code>ready</code> with the ones it speaks, and stop with a clear message if they differ (PyAT does).</p>
+<pre><code class="language-python">import json, subprocess, sys
+p = subprocess.Popen([sys.executable, &quot;-m&quot;, &quot;PyATCLI&quot;, &quot;serve&quot;], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+ready = json.loads(p.stdout.readline())
+p.stdin.write(json.dumps({&quot;id&quot;: 1, &quot;method&quot;: &quot;recording.open&quot;, &quot;params&quot;: {&quot;path&quot;: &quot;D:/rats/Rat7-250101&quot;}}) + &quot;\n&quot;); p.stdin.flush()
+while (msg := json.loads(p.stdout.readline())).get(&quot;event&quot;) not in (&quot;result&quot;, &quot;error&quot;):
+    pass                                                # progress events
+cache = msg[&quot;result&quot;][&quot;cache&quot;]                          # structure; arrays are {&quot;__array__&quot;: file, ...} in msg[&quot;result&quot;][&quot;directory&quot;]
+</code></pre>
+<hr>
+<h2 id="reading-results-back">Reading results back</h2>
+<h3 id="open_resultssource---openedresults"><code>open_results(source) -&gt; OpenedResults</code></h3>
+<p><code>PyATCLI.results.open_results</code> finds the numbers of a finished analysis from the files it left, with no drawing and no plotting library. <code>source</code>
+is a group analysis&#39;s folder (or its <code>analysis_settings.json</code>), a <code>.provenance.json</code> record, a folder holding records or tables (its newest record, or
+else its <code>.csv</code> tables), or one <code>.csv</code>. A group&#39;s folder is recognised by its settings file, whatever has been exported into it since.</p>
+<p><strong>Returns</strong> an <code>OpenedResults</code> (a dataclass): <code>path</code> and <code>directory</code> (absolute), <code>kind</code> (what made them: <code>&quot;group_analysis&quot;</code>, an analysis kind such as
+<code>&quot;event_peth&quot;</code>, or <code>None</code> for a bare table), <code>parameters</code> (what it was asked; a group&#39;s settings as a dict), <code>tables</code> (<code>{name: DataFrame}</code>, the numbers
+read back exactly as written; a group&#39;s by the names in <code>TABLE_FILES</code>), <code>notes</code> (<code>[{&quot;level&quot;, &quot;measure&quot;, &quot;text&quot;}]</code>, a group&#39;s) and <code>software</code>, and
+<code>files</code> (what was read). Raises <code>NoResults</code> (a <code>ValueError</code>) if there is nothing there to read.</p>
+<p>The engine&#39;s <code>results.open</code> (<code>path</code>, <code>tables=&quot;shapes&quot;|&quot;inline&quot;|&quot;files&quot;</code>) answers with the same, tables as <code>group.run</code> hands them back. PyAT&#39;s
+Open Results… asks for it and draws what comes back.</p>
+<p><code>analysis.group.rebuild.results_from_tables(tables, parameters=None, notes=None, software=None)</code> puts a group analysis&#39;s <code>GroupResults</code> back together
+from its tables (what the report and PyAT&#39;s figures are written from); <code>None</code> if they are not a group analysis&#39;s.</p>
+<hr>
+<h2 id="drawing-results">Drawing results</h2>
+<p>The library draws nothing. It computes and writes numbers — tables, JSON records, settings — and has no plotting code and no plotting dependency (no
+matplotlib, no <code>[plot]</code> extra). The figures are PyAT&#39;s: its analysis windows, a group analysis&#39;s figures, Export View, Edit Graph Attributes and the
+writing of a figure to a PNG, TIFF, PDF or SVG file with the CSV of its data are <code>physicsanalysis_qt/figures</code>, which draws from the same tables the
+library writes (the columns each one always has are in <code>ENGINE_CONTRACT.json</code>). Open Results… in PyAT draws a finished analysis again from its files.</p>
+<p>A script that wants a picture reads the tables and draws them itself:</p>
+<pre><code class="language-python">result = pl.run_analysis(&quot;event_peth&quot;, cache, {&quot;event&quot;: &quot;L1P¹&quot;, &quot;pre_s&quot;: 10, &quot;post_s&quot;: 20})
+result.tables[&quot;trials&quot;]         # Trial, Trial Event Time (s), time_from_event_s, z_score — a row per trial and sample
+result.tables[&quot;mean_sem&quot;]       # time_from_event_s, mean, sem
+
+opened = pl.open_results(&quot;out/Group Analysis/Sucrose&quot;)      # or from the files a run wrote (see Reading results back)
+opened.tables[&quot;mean_traces&quot;]    # marker, subject, n_trials, time, value
+</code></pre>
+<p>What a script that used to call <code>plotlatest</code>, <code>build_view</code>, <code>save_figure</code> or <code>edit_attributes</code> does now: take the tables (<code>run_analysis</code>,
+<code>run_view(...).tables</code>, <code>open_results</code>) and plot them with matplotlib or any other tool. Export View&#39;s numbers (the lines, the range, the markers, the
+data CSV) are <code>viewplan</code> (<a href="#export-views-numbers">Export View&#39;s numbers</a>).</p>
+<hr>
+<h2 id="export-views-numbers">Export View&#39;s numbers</h2>
+<p><code>PyATCLI.viewplan</code> says what the main plot of a recording shows, as data: which lines it has (under what name, with what numbers), the range, the
+markers in it, and the title and axis labels it would carry. The figure itself — colours, widths, the legend, the page — is PyAT&#39;s (Export View, and the
+plot on screen, both engines).</p>
+<pre><code class="language-python">cache = pl.load_recording(&quot;D:/rats/Rat7-250101&quot;)[&quot;cache&quot;]
+plan = pl.viewplan.plan_view(cache, xlim=(40, 120), signals=[&quot;normalized&quot;, &quot;main_driver&quot;])
+plan.data_table()          # time_s and a column per line, every sample in view
+plan.write_data(&quot;fig1&quot;)    # fig1_data.csv, and fig1_markers.csv if any marker is in view
+</code></pre>
+<ul>
+<li><code>plan_view(cache, *, signals=None, active=None, xlim=None, ylim=None, show_grid=True, store_labels=None, attributes=None) -&gt; ViewPlan</code>. <code>cache</code> is a
+recording as <code>load_recording</code> returns it. <code>xlim</code>, <code>ylim</code>: the range, in seconds and signal units (default: all of the recording with a little room;
+the y range then follows the data). <code>signals</code>: a TDT recording&#39;s signals to show — keys of <code>cache[&quot;signals&quot;]</code> (<code>&quot;normalized&quot;</code> by default; more than
+one are overlaid, in the recording&#39;s order); <code>active</code> the one shown if only one is. <code>store_labels</code>: <code>{store id: shown name}</code> for marker names.
+<code>attributes</code>: whatever the viewer drew it with (a title, labels, colours), kept for <code>parameters()</code> and never interpreted.</li>
+<li><code>ViewPlan</code>: <code>.traces</code>, <code>.xlim</code>, <code>.ylim</code>, <code>.markers</code> (the markers in view as <code>(time, shown name, colour)</code>), <code>.in_view</code>, <code>.signals</code>, <code>.title</code>, <code>.x_label</code>,
+<code>.y_label</code>, <code>.parameters()</code> (what it takes to make the view again, JSON-ready), <code>.data_table()</code> (one row per sample in view: <code>time_s</code> — or the file&#39;s own
+x name — and a column per line, at the recording&#39;s full resolution), <code>.markers_table()</code>, <code>.write_data(base)</code>.</li>
+<li><code>view_traces(cache, *, signals=None, active=None) -&gt; (traces, title, x_label, y_label)</code>: which lines a recording&#39;s main plot has. A <code>Trace</code> says what
+it is, never how it looks: <code>label</code> (<code>&quot;_nolegend_&quot;</code> for a channel line that follows its group&#39;s entry), <code>x</code>, <code>y</code>, <code>y_full</code> (the whole time axis, NaN
+where the line has no sample), <code>csv_name</code>, <code>key</code> (the name per-line choices are filed under), <code>role</code> (<code>&quot;signal&quot;</code>, <code>&quot;corrected&quot;</code>, <code>&quot;o2hb_channel&quot;</code>,
+<code>&quot;hhb_channel&quot;</code>, <code>&quot;o2hb_mean&quot;</code>, <code>&quot;hhb_mean&quot;</code>, <code>&quot;thb_mean&quot;</code>, <code>&quot;column&quot;</code>), <code>signal</code> (a TDT signal&#39;s key) and <code>color</code> (the colour the recording itself gives
+the signal, if any). A TDT recording shows its normalized (dF/F) trace, or the signals ticked; an Oxysoft export a line per channel and a mean per group
+(O2Hb, HHb, tHb), the fit factor in the mean&#39;s name; a generic table a line per column with its gaps left out.</li>
+<li><code>padded_xlim(x)</code>: the &quot;show everything&quot; range, with a little room.</li>
+</ul>
+<h3 id="replaying-a-view">Replaying a view</h3>
+<p><code>run_view(cache, parameters=None, *, store_labels=None) -&gt; AnalysisResult</code> gives a view&#39;s numbers: <code>tables[&quot;data&quot;]</code> is the CSV beside the figure and
+<code>tables[&quot;markers&quot;]</code> the markers in view. <code>parameters</code> are a view&#39;s own (<code>ViewPlan.parameters()</code>): <code>x_range</code>, <code>y_range</code>, <code>signals</code>, <code>show_grid</code>,
+<code>attributes</code> (carried as given: it changes no number). A record of kind <code>view</code> — PyAT&#39;s Export View writes one — is replayed by <code>reproduce_record</code>,
+which compares a data CSV column for column like any analysis:</p>
+<pre><code class="language-python">rep = pl.reproduce_record(&quot;fig1.provenance.json&quot;, compare=[&quot;fig1_data.csv&quot;])
+rep.ok
+</code></pre>
+<h3 id="naming-signals">Naming signals</h3>
+<p><code>recording.name_problem({signal key: name})</code> says why those names cannot be a recording&#39;s (a name must say something, and two signals cannot share one),
+and <code>recording.plan_signal_renames(cache, renames)</code> returns <code>{signal key: new name}</code> for what would change (<code>ValueError</code>, nothing changed, if two signals
+would share a name). A signal&#39;s name is saved state (<code>saved_state.rename_signals</code>, refusing what the app refuses) and applied when the recording is
+opened, so it reaches every analysis, table and figure.</p>
+<hr>
+<h2 id="text-field-study">Text Field Study</h2>
+<p>A pipeline for comparing free-text survey/response fields across
+subjects via sentence-embedding similarity — e.g. &quot;did this subject&#39;s
+answer to field A resemble their answer to field B more than chance
+pairing would predict?&quot; Needs the optional <code>sentence-transformers</code>
+package (see <a href="#optional-dependencies">Optional dependencies</a>).</p>
+<h3 id="run_field_study_pipelinefolder_path-text_fields-delta_pairnone-paired_fieldsnone-model_nameall-minilm-l6-v2-n_null200-rng_seednone-file_globp-json-min_words5-progressnone---pandasdataframe"><code>run_field_study_pipeline(folder_path, text_fields, delta_pair=None, paired_fields=None, model_name=&quot;all-MiniLM-L6-v2&quot;, n_null=200, rng_seed=None, file_glob=&quot;P-*.json&quot;, min_words=5, progress=None) -&gt; pandas.DataFrame</code></h3>
+<p>The single entry point — runs the whole pipeline (load → flag
+low-quality → embed → optional delta vector → optional paired
+similarity + permutation test + word-count confound check) and folds
+everything into one DataFrame, one row per subject.</p>
+<ul>
+<li><code>delta_pair</code> (<code>(field_from, field_to)</code>, optional): adds a
+<code>delta_magnitude</code> column — <code>‖vec(field_to) - vec(field_from)‖</code>.</li>
+<li><code>paired_fields</code> (<code>[(field_a, field_b, pair_name), ...]</code>, optional):
+adds per pair <code>sim_&lt;name&gt;</code>, <code>null_mean_&lt;name&gt;</code>, <code>null_std_&lt;name&gt;</code>,
+<code>pvalue_&lt;name&gt;</code>/<code>effect_size_&lt;name&gt;</code> (permutation test), and
+<code>wc_confound_r_&lt;name&gt;</code>/<code>wc_confound_p_&lt;name&gt;</code> (word-count confound
+check). The test-level values repeat identically across every row for
+that pair — one number per pair, not per subject.</li>
+</ul>
+<p>The stage functions below are also available individually for anyone
+who wants an intermediate result.</p>
+<h3 id="load_field_study_folderfolder_path-text_fields-file_globp-json-progressnone---pandasdataframe"><code>load_field_study_folder(folder_path, text_fields, file_glob=&quot;P-*.json&quot;, progress=None) -&gt; pandas.DataFrame</code></h3>
+<p>Loads every file matching <code>file_glob</code> into one row-per-subject
+DataFrame, adding a <code>wordcount_&lt;field&gt;</code> column per text field.</p>
+<h3 id="peek_fieldsfolder_path-file_globp-json---liststr"><code>peek_fields(folder_path, file_glob=&quot;P-*.json&quot;) -&gt; list[str]</code></h3>
+<p>Field names (dict keys) found in the <em>first</em> matching file, without
+loading the whole folder — for a GUI to show real field names to pick
+from rather than requiring them typed blind.</p>
+<h3 id="flag_low_qualitydf-text_fields-min_words5---pandasdataframe"><code>flag_low_quality(df, text_fields, min_words=5) -&gt; pandas.DataFrame</code></h3>
+<p>Flags (doesn&#39;t drop) near-empty responses. Adds <code>low_quality_&lt;field&gt;</code>
+per field and <code>any_low_quality</code> (OR across fields). Must run after
+<code>load_field_study_folder</code> (needs the <code>wordcount_&lt;field&gt;</code> columns).</p>
+<h3 id="embed_text_fieldsdf-fields-model_nameall-minilm-l6-v2-progressnone---dict"><code>embed_text_fields(df, fields, model_name=&quot;all-MiniLM-L6-v2&quot;, progress=None) -&gt; dict</code></h3>
+<p>Embeds each field with a <code>sentence-transformers</code> model, L2-normalized
+(so a plain dot product is cosine similarity). Returns
+<code>{field: (n_subjects, dim) ndarray, ...}</code>. Raises a clear <code>ImportError</code>
+with an install hint if <code>sentence-transformers</code> isn&#39;t installed.</p>
+<h3 id="compute_delta_vectorembeddings-field_from-field_to---delta_vectors-delta_magnitude"><code>compute_delta_vector(embeddings, field_from, field_to) -&gt; (delta_vectors, delta_magnitude)</code></h3>
+<p>Per-subject <code>vec(field_to) - vec(field_from)</code>, plus its magnitude.</p>
+<h3 id="compute_paired_similarityembeddings-paired_fields-n_null200-rng_seednone-progressnone---dict"><code>compute_paired_similarity(embeddings, paired_fields, n_null=200, rng_seed=None, progress=None) -&gt; dict</code></h3>
+<p>Cosine similarity between each field pair for the same subject, plus a
+null distribution built by repeatedly shuffling one field&#39;s vectors
+across subjects. Returns, per pair name:</p>
+<pre><code class="language-python">{
+    &#39;same_subject_similarity&#39;: ndarray,   # (n_subjects,)
+    &#39;null_mean&#39;: float, &#39;null_std&#39;: float,
+    &#39;null_values&#39;: ndarray,               # (n_null * n_subjects,), pooled
+    &#39;null_shuffle_means&#39;: ndarray,        # (n_null,) — the actual null
+                                           # distribution for testing the MEAN
+}
+</code></pre>
+<h3 id="permutation_test_similaritysame_subject_similarity-null_shuffle_means---dict"><code>permutation_test_similarity(same_subject_similarity, null_shuffle_means) -&gt; dict</code></h3>
+<p>One-tailed permutation test: is observed mean same-subject similarity
+higher than chance pairing? Returns <code>{&quot;observed_mean_similarity&quot;, &quot;p_value&quot;, &quot;effect_size&quot;, &quot;null_shuffle_mean&quot;, &quot;null_shuffle_std&quot;}</code>.</p>
+<h3 id="wordcount_confound_checkdf-paired_fields---dict"><code>wordcount_confound_check(df, paired_fields) -&gt; dict</code></h3>
+<p>Pearson correlation between each pair&#39;s combined word count and its
+similarity, across subjects — a significant positive correlation would
+mean &quot;longer answers just look more similar,&quot; undercutting a similarity
+claim. Returns <code>{pair_name: {&quot;r&quot;, &quot;p_value&quot;}, ...}</code> (both <code>NaN</code> if fewer
+than 2 subjects or word count has no variance).</p>
+<hr>
+<h2 id="text-field-study--statistical-validation">Text Field Study — Statistical Validation</h2>
+<p>A companion module that stress-tests a Text Field Study result: is the
+similarity real, or could it be a word-count artifact, a single outlier
+subject, or noise that wouldn&#39;t survive multiple-comparisons correction?</p>
+<h3 id="run_validation_pipelinefolder_path-text_fields-paired_fields-model_nameall-minilm-l6-v2-n_null200-n_boot1000-rng_seednone-file_globp-json-id_fieldparticipant_id-progressnone---pandasdataframe"><code>run_validation_pipeline(folder_path, text_fields, paired_fields, model_name=&quot;all-MiniLM-L6-v2&quot;, n_null=200, n_boot=1000, rng_seed=None, file_glob=&quot;P-*.json&quot;, id_field=&quot;participant_id&quot;, progress=None) -&gt; pandas.DataFrame</code></h3>
+<p>Full validation pipeline: load → embed → paired similarity → build the
+summary table below. Self-contained (recomputes embeddings rather than
+reusing a prior <code>run_field_study_pipeline</code> call). <code>paired_fields</code> is
+required here — there&#39;s nothing to validate without at least one pair.</p>
+<h3 id="build_validation_summarydf-paired_fields-similarity_results-id_fieldparticipant_id-n_boot1000-rng_seednone-progressnone---pandasdataframe"><code>build_validation_summary(df, paired_fields, similarity_results, id_field=&quot;participant_id&quot;, n_boot=1000, rng_seed=None, progress=None) -&gt; pandas.DataFrame</code></h3>
+<p>One row per field pair:</p>
+<table>
+<thead>
+<tr>
+<th>column</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>pair</code>, <code>field_a</code>, <code>field_b</code></td>
+<td>which fields</td>
+</tr>
+<tr>
+<td><code>observed_mean_similarity</code></td>
+<td>mean same-subject similarity</td>
+</tr>
+<tr>
+<td><code>p_value</code></td>
+<td>permutation-test p-value (one-tailed)</td>
+</tr>
+<tr>
+<td><code>p_value_fdr</code></td>
+<td><strong>use this one</strong>, not raw <code>p_value</code> — Benjamini-Hochberg corrected across all pairs in the table</td>
+</tr>
+<tr>
+<td><code>cohens_d</code></td>
+<td>effect size vs. the pooled chance-pairing null</td>
+</tr>
+<tr>
+<td><code>wc_coef_a</code>/<code>wc_pvalue_a</code>, <code>wc_coef_b</code>/<code>wc_pvalue_b</code></td>
+<td>word-count regression coefficient/p-value per field, controlling for the other — significant means part of the effect may just be verbosity</td>
+</tr>
+<tr>
+<td><code>regression_r_squared</code></td>
+<td>variance in similarity explained by both word counts (low = reassuring)</td>
+</tr>
+<tr>
+<td><code>ci_lower</code>, <code>ci_upper</code></td>
+<td>bootstrap 95% CI on <code>observed_mean_similarity</code></td>
+</tr>
+<tr>
+<td><code>n_flagged_loo</code></td>
+<td>subjects flagged by leave-one-out sensitivity (0 is reassuring)</td>
+</tr>
+<tr>
+<td><code>flagged_participant_ids</code></td>
+<td>which ones</td>
+</tr>
+</tbody></table>
+<h3 id="cohens_dgroup1-group2---float"><code>cohens_d(group1, group2) -&gt; float</code></h3>
+<p>Standardized mean difference between two distributions (pooled std
+units) — rough guide ~0.2 small, ~0.5 medium, ~0.8 large. Typically
+called with <code>group1</code> = same-subject similarities, <code>group2</code> = pooled
+null similarities.</p>
+<h3 id="benjamini_hochbergp_values---ndarray"><code>benjamini_hochberg(p_values) -&gt; ndarray</code></h3>
+<p>False-discovery-rate correction across multiple hypothesis tests — less
+conservative than Bonferroni while still controlling the <em>expected
+proportion</em> of false positives among results called significant.
+Returns corrected p-values (&quot;q-values&quot;), same order as input.</p>
+<h3 id="wordcount_controlled_regressiondf-field_a-field_b-sim_col---dict"><code>wordcount_controlled_regression(df, field_a, field_b, sim_col) -&gt; dict</code></h3>
+<p>OLS regression: <code>similarity \~ wordcount_&lt;field_a&gt; + wordcount_&lt;field_b&gt;</code>.
+Tests whether either field&#39;s length predicts similarity independent of
+the other. <strong>Requires <code>statsmodels</code></strong> (hard import, no fallback).
+Returns <code>{&quot;r_squared&quot;, &quot;coef_const&quot;, &quot;coef_wordcount_&lt;field_a&gt;&quot;, &quot;coef_wordcount_&lt;field_b&gt;&quot;, &quot;pvalue_const&quot;, &quot;pvalue_wordcount_&lt;field_a&gt;&quot;, &quot;pvalue_wordcount_&lt;field_b&gt;&quot;, &quot;model&quot;}</code> (<code>model</code> is the full
+<code>statsmodels</code> <code>RegressionResults</code> object).</p>
+<h3 id="bootstrap_mean_civalues-n_boot1000-ci095-rng_seednone---dict"><code>bootstrap_mean_ci(values, n_boot=1000, ci=0.95, rng_seed=None) -&gt; dict</code></h3>
+<p>Bootstrap confidence interval on the mean (resample with replacement,
+<code>n_boot</code> times) — doesn&#39;t assume normality, unlike a textbook
+<code>mean ± 1.96·SE</code> interval. Returns <code>{&quot;mean&quot;, &quot;ci_lower&quot;, &quot;ci_upper&quot;, &quot;boot_means&quot;}</code>.</p>
+<h3 id="leave_one_out_sensitivityvalues-idsnone---dict"><code>leave_one_out_sensitivity(values, ids=None) -&gt; dict</code></h3>
+<p>Recomputes the mean with each subject dropped one at a time; flags any
+subject whose removal shifts the mean by more than one standard
+deviation of the resulting leave-one-out-means distribution. Catches a
+single subject quietly dominating the result. A flagged subject isn&#39;t
+automatically wrong/excludable — it&#39;s worth a manual look.</p>
+<p><strong>Returns</strong> <code>{&quot;full_mean&quot;, &quot;loo_means&quot;, &quot;shifts&quot;, &quot;threshold&quot;, &quot;flagged_ids&quot;}</code>.</p>
+<hr>
+<h2 id="progress-reporting">Progress reporting</h2>
+<p>Every slow function takes an optional <code>progress</code> argument (it is in the
+signature of each one above), built on <a href="https://tqdm.github.io">tqdm</a>:</p>
+<table>
+<thead>
+<tr>
+<th><code>progress=</code></th>
+<th>what happens</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>None</code> <em>(default)</em></td>
+<td>silent, and it costs nothing</td>
+</tr>
+<tr>
+<td><code>True</code></td>
+<td>a tqdm progress bar on the console (stderr), for scripts and notebooks</td>
+</tr>
+<tr>
+<td>a callable</td>
+<td>called as <code>progress(fraction, message)</code>: <code>fraction</code> runs 0.0 to 1.0 and never goes backwards, and <code>message</code> says what is happening right now (e.g. <code>&quot;Fitting photobleaching baseline&quot;</code>). It may be called from whatever thread the work runs on, so a GUI should hand each call over to its own thread (PyAT turns it into a Qt signal that updates a toast)</td>
+</tr>
+</tbody></table>
+<pre><code class="language-python">result = pl.process_tdt_folder(folder_path, progress=True)
+result = pl.process_tdt_folder(folder_path, progress=lambda fraction, message: print(f&quot;{fraction:4.0%}  {message}&quot;))
+</code></pre>
+<p>Progress never changes a result, and a callback that raises is switched off
+with a warning instead of aborting the work it was only watching.</p>
+<p>What reports, and how: <code>process_tdt_folder</code> / <code>get_tdt_struct</code> / <code>compute_dff</code>
+by stage (reading the streams, each event store, motion correction, the
+photobleaching baseline), the Oxysoft loaders by bytes read, <code>load_any_file</code>
+by sheet (Excel) or by row pass (CSV/TSV/text), <code>compute_event_zscore_peth</code>
+and <code>find_peak_near_events</code> by event, and the Text Field Study pipelines
+(<code>load_field_study_folder</code>, <code>embed_text_fields</code>, <code>compute_paired_similarity</code>,
+<code>run_field_study_pipeline</code>, <code>build_validation_summary</code>, <code>run_validation_pipeline</code>)
+by step, the language-model load and the embedding being the long ones.</p>
+<h3 id="planprogress-stages"><code>Plan(progress, stages)</code></h3>
+<p>Turns named, weighted stages into one 0-1 fraction: for your own slow code,
+or to give a callee a slice of your bar.</p>
+<pre><code class="language-python">plan = pl.Plan(progress, [(&quot;Reading files&quot;, 30), (&quot;Fitting&quot;, 70)])
+for path in plan.track(&quot;Reading files&quot;, paths):      # a tqdm iterator, so updates are throttled
+    ...
+plan.begin(&quot;Fitting&quot;)
+fit(data, progress=plan.sub(&quot;Fitting&quot;))              # the callee&#39;s 0-1 is mapped into this stage
+plan.done()
+</code></pre>
+<ul>
+<li><code>plan.track(stage, iterable, total=None)</code> iterates as that stage; <code>plan.bar(stage, total)</code> is the same for updates by hand (<code>bar.update(n)</code>); <code>plan.begin(stage)</code> marks a step with no loop to tick; <code>plan.sub(stage)</code> is a stage as a <code>progress</code> callback for another function; <code>plan.done()</code> reports 100%.</li>
+<li>With <code>progress=None</code> every one of these is a no-op: <code>track</code> hands the iterable straight back and <code>sub</code> returns <code>None</code>, so the callee stays silent too.</li>
+</ul>
+<h3 id="trackiterable-progressnone-descriptionworking-totalnone"><code>track(iterable, progress=None, description=&quot;Working&quot;, total=None)</code></h3>
+<p><code>Plan</code> for a single loop: <code>for f in pl.track(files, progress, &quot;Reading files&quot;): ...</code></p>
+<hr>
+<h2 id="optional-dependencies">Optional dependencies</h2>
+<p><code>numpy</code>, <code>scipy</code>, <code>pandas</code>, <code>tdt</code>, <code>scikit-learn</code>, and <code>tqdm</code> are regular,
+required dependencies (installed automatically by
+<code>pip install PyATCLI</code>) — <code>scikit-learn</code> in particular backs
+<em>all</em> of <code>process_tdt_folder</code>&#39;s regression methods including <code>&quot;ols&quot;</code>,
+since <code>sources/processing_TDT.py</code> imports it unconditionally at module level,
+not just when RANSAC/Huber are actually selected.</p>
+<p>The ones below are genuinely soft — each has a guarded import that fails
+with a clear, actionable message instead of crashing obscurely, rather
+than being unavailable outright:</p>
+<table>
+<thead>
+<tr>
+<th>package</th>
+<th>needed for</th>
+<th>behavior if missing</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>openpyxl</code></td>
+<td><code>load_any_file</code> on <code>.xlsx</code>/<code>.xls</code></td>
+<td><code>ImportError</code> at call time: &quot;Install openpyxl to read .xlsx files: pip install openpyxl&quot;</td>
+</tr>
+<tr>
+<td><code>sentence-transformers</code></td>
+<td><code>embed_text_fields</code> (and everything downstream: <code>compute_delta_vector</code>, <code>compute_paired_similarity</code>, <code>permutation_test_similarity</code>, <code>wordcount_confound_check</code>, <code>run_field_study_pipeline</code>, <code>run_validation_pipeline</code>, <code>build_validation_summary</code>)</td>
+<td><code>ImportError</code> with an install hint (<code>pip install sentence-transformers</code>)</td>
+</tr>
+</tbody></table>
+<p><code>sentence-transformers</code> pulls in <code>torch</code>/<code>transformers</code> (hundreds of MB
+to 1GB+) — it&#39;s actually listed as a normal, unconditional dependency in
+<code>pyproject.toml</code> despite being guarded at the code level like a soft
+one; if you&#39;re building a lightweight install and don&#39;t need Text Field
+Study, it&#39;s worth installing everything else by hand rather than via
+<code>pip install PyATCLI</code> directly.</p>
+<p><code>statsmodels</code> is also a required <code>pyproject.toml</code> dependency, imported
+unguarded where it is used: <code>fit_group_models</code> (the mixed-effects models of
+group analysis) and <code>wordcount_controlled_regression</code>. It is not touched by
+loading, TDT processing or the single-recording analyses.</p>

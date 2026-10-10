@@ -1,7 +1,7 @@
-<app-triangular-banner headerText="API Reference" imgSrc="../../../assets/img/projects/pyatcli.webp" imgPosition="center"></app-triangular-banner>
+<app-triangular-banner headerText="API Reference" imgSrc="../../../assets/img/projects/PyATCLI.webp" imgPosition="center"></app-triangular-banner>
 
 <div class="container apiReferenceContainer" style="max-width: 80%;">
-    <a routerLink="/projects/pyatcli" class="backLink">&larr; Back to PyAT CLI</a>
+    <a routerLink="/projects/pyatcli" class="backLink">&larr; Back to PyATCLI</a>
 
-    <div class="markdownContent" [innerHTML]="content"></div>
+    <div class="markdownContent" [innerHTML]="content" (click)="onContentClick($event)"></div>
 </div>

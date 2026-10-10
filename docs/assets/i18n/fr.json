@@ -34,15 +34,15 @@
             "infoPageButtonText": ""
         },
         "physicsLibrary": {
-            "projectsPageHeader": "PyAT CLI",
-            "infoPageHeader": "PyAT CLI",
-            "infoPageDescription": "Une bibliothèque Python open-source fournissant des outils d'analyse et de traitement de données partagés pour mes travaux en physique et en neuroscience. Conçue pour garder la logique de base réutilisable entre plusieurs interfaces et pipelines de laboratoire.",
+            "projectsPageHeader": "PyATCLI",
+            "infoPageHeader": "PyATCLI",
+            "infoPageDescription": "Un paquet Python open-source, <code>pip install PyATCLI</code>, qui regroupe les outils d'analyse et de traitement de données derrière mes travaux en physique et en neuroscience : chargement de photométrie par fibre, de NIRS et de tableaux, statistiques par événement et de groupe, un moteur d'arrière-plan qui exécute les analyses, et une ligne de commande qui rejoue un export à partir de la fiche de provenance enregistrée à côté. Il calcule et écrit les nombres ; l'application les dessine. Anciennement PhysicsLibrary.",
             "infoPageButtonText": "Dépot GitHub"
         },
         "physicsAnalysisGui": {
             "projectsPageHeader": "Python Analysis Tool",
             "infoPageHeader": "Python Analysis Tool",
-            "infoPageDescription": "Une application de bureau PyQt6 pour charger, visualiser et analyser des données de laboratoire, avec la prise en charge de nouveaux formats de données ajoutée en continu. Construite sur la logique partagée de <a href='/projects/pyatcli' class='unstyledLink'>PyAT CLI</a>.",
+            "infoPageDescription": "Une application de bureau PyQt6 pour charger, visualiser et analyser des données de laboratoire, avec la prise en charge de nouveaux formats de données ajoutée en continu. Construite sur <a href='/projects/pyatcli' class='unstyledLink'>PyATCLI</a>.",
             "infoPageButtonText": "Dépot GitHub",
             "infoPageFeatureGroups": [
                 {

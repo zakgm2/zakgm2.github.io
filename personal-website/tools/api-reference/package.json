@@ -1,0 +1,13 @@
+{
+  "name": "api-reference-render",
+  "private": true,
+  "type": "module",
+  "description": "Renders PyATCLI's API_REFERENCE.md to the snapshot the website's API Reference page shows. Separate from the site's own dependencies on purpose.",
+  "scripts": {
+    "render": "node render.mjs"
+  },
+  "dependencies": {
+    "github-slugger": "2.0.0",
+    "marked": "15.0.12"
+  }
+}

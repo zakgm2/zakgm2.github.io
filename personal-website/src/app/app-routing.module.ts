@@ -16,11 +16,11 @@ const routes: Routes = [
   {path: 'papers', component: PapersPageComponent},
   {path: 'contact', component: ContactPageComponent},
 
-  //PyAT CLI (PhysicsLibrary repo)
+  //PyATCLI (the analysis library, engine and command line)
   {path: "projects/pyatcli", component: ProjectInfoComponent, data: new ProjectInfoModel(
     "../../../assets/img/projects/PyATCLI.webp", //Background image
     "projects.physicsLibrary",
-    "https://github.com/zakgm2/PhysicsLibrary",
+    "https://github.com/zakgm2/PyATCLI",
     "",
     "",
     "",
@@ -29,22 +29,22 @@ const routes: Routes = [
     "contain"
   )},
 
-  //PyAT CLI (PhysicsLibrary repo) API Reference
+  //PyATCLI API Reference
   {path: "projects/pyatcli/docs", component: ApiReferencePageComponent},
 
-  //PhysicsAnalysisGUI
+  //PyAT (Python Analysis Tool)
   {path: "projects/pyat", component: ProjectInfoComponent, data: new ProjectInfoModel(
     "../../../assets/img/projects/PyATGUI.webp",
     "projects.physicsAnalysisGui",
-    "https://github.com/zakgm2/PhysicsAnalysisGUI",
+    "https://github.com/zakgm2/PyAT",
     "",
-    "https://github.com/zakgm2/PhysicsAnalysis/releases/latest/download/PyAT-windows.zip",
-    "https://github.com/zakgm2/PhysicsAnalysis/releases/latest/download/PyAT-macos.zip",
-    "zakgm2/PhysicsAnalysisGUI",
+    "https://github.com/zakgm2/PyAT/releases/latest/download/PyAT-windows.zip",
+    "https://github.com/zakgm2/PyAT/releases/latest/download/PyAT-macos.zip",
+    "zakgm2/PyAT",
     "",
     // The logo is a square; "cover" would zoom it to fill a wide viewport.
     "contain",
-    "https://github.com/zakgm2/PhysicsAnalysisGUI/issues"
+    "https://github.com/zakgm2/PyAT/issues"
   )},
 
   //Old PhysicsLibrary URLs
