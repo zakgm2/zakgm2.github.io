@@ -37,7 +37,7 @@
         "physicsLibrary": {
             "projectsPageHeader": "PyATCLI",
             "infoPageHeader": "PyATCLI",
-            "infoPageDescription": "An open-source Python package, <code>pip install PyATCLI</code>, with the analysis and data-processing tools behind my physics and neuroscience lab work: fibre-photometry, NIRS and tabular loaders, event-triggered and group statistics, a background engine that runs the analyses, and a command line that replays an export from the provenance record saved beside it. It computes and writes numbers; the app draws them. Formerly PhysicsLibrary.",
+            "infoPageDescription": "An open-source Python package, <code>pip install PyATCLI</code>, with the analysis and data-processing tools behind my physics and neuroscience lab work: fibre-photometry, NIRS and tabular loaders, event-triggered and group statistics, a processing pipeline whose every choice is an option (and a methods paragraph written from what was actually done), a background engine that runs the analyses, and a command line that replays an export from the provenance record saved beside it. It computes and writes numbers; the app draws them. Formerly PhysicsLibrary.",
             "infoPageButtonText": "GitHub Repository"
         },
         "physicsAnalysisGui": {
@@ -48,15 +48,15 @@
             "infoPageFeatureGroups": [
                 {
                     "header": "Data Loading",
-                    "summary": "Load TDT tank folders, Oxysoft/Artinis NIRS exports, Excel/CSV/TSV files, Terranova PT2 EFNMR/MRI images, and text-field study folders, all through one unified menu, with automatic detection of multiple side-by-side tables in a single sheet."
+                    "summary": "Load TDT tank folders, Oxysoft/Artinis NIRS exports, Excel/CSV/TSV files, Terranova PT2 EFNMR/MRI images, and text-field study folders, all through one unified menu or by dropping a file or folder on the window, with automatic detection of multiple side-by-side tables in a single sheet."
                 },
                 {
                     "header": "Interactive Plotting",
-                    "summary": "Scroll to zoom, drag to pan, and rectangle-select a region, with hover tracker dots that snap to the nearest line and show exact values. Switch between matplotlib and GPU-accelerated PyQtGraph rendering at any time, with golden-ratio font scaling that stays crisp through every resize."
+                    "summary": "Scroll to zoom, drag to pan, and rectangle-select a region, with hover tracker dots that snap to the nearest line and show exact values. Switch between matplotlib and GPU-accelerated PyQtGraph rendering at any time, with golden-ratio font scaling that stays crisp through every resize. Slow work runs in a separate engine process, so the window never freezes, with a progress toast and a Cancel button that really stops it."
                 },
                 {
                     "header": "Analysis Tools",
-                    "summary": "Fit linear, exponential, Gaussian, or sinusoidal curves to any segment, run FFTs with automatic peak annotation, generate PETH / Z-score peri-event histograms for TDT recordings, and view PT2 EFNMR/MRI images with colormap selection and PNG/PDF/SVG export."
+                    "summary": "Fit linear, exponential, Gaussian, or sinusoidal curves to any segment, run FFTs with automatic peak annotation, generate PETH / Z-score peri-event histograms for TDT recordings, compare the average response to several events side by side, and see the Z-score of a whole recording with its traces behind it. Find significant peaks against a shuffled chance level, run a group analysis across recordings with a mixed-effects model per measure, and view PT2 EFNMR/MRI images with colormap selection and PNG/PDF/SVG export. Every analysis opens as a tab along the bottom of the window that can pop out into a window of its own and dock back, and its figure can be restyled with Edit Attributes."
                 },
                 {
                     "header": "Event Markers",
@@ -65,6 +65,14 @@
                 {
                     "header": "Text Field Study Analysis",
                     "summary": "Compare any pair of fields across a folder of per-subject JSON data with no fixed schema, using sentence-transformer embeddings and paired similarity metrics. Full statistical validation follows: permutation testing, Benjamini-Hochberg FDR correction, Cohen's d, word-count-controlled regression, bootstrap confidence intervals, and leave-one-out sensitivity checks."
+                },
+                {
+                    "header": "Processing Pipeline",
+                    "summary": "Choose how every recording is processed, in one place: the motion-correction method and the stretch it is fitted over, the dF/F baseline (double or single exponential, linear, fitted isosbestic, running median or percentile), the low-pass filter, the smoothing and the z-score baseline. The choices apply to everything you open, group analyses included, and Copy pipeline writes what a recording was actually processed with as a methods paragraph, with the values chosen and the software versions, ready for a paper."
+                },
+                {
+                    "header": "Reproducible Exports",
+                    "summary": "Every export gets a provenance record beside it, with the software versions, a fingerprint of the recording, the pipeline's settings and the analysis parameters, and the command line replays it to check the numbers match. Figures export as PNG, TIFF, PDF or SVG at an exact size and resolution, with the data behind each plot saved beside them."
                 }
             ]
         },

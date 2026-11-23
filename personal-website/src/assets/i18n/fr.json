@@ -36,7 +36,7 @@
         "physicsLibrary": {
             "projectsPageHeader": "PyATCLI",
             "infoPageHeader": "PyATCLI",
-            "infoPageDescription": "Un paquet Python open-source, <code>pip install PyATCLI</code>, qui regroupe les outils d'analyse et de traitement de données derrière mes travaux en physique et en neuroscience : chargement de photométrie par fibre, de NIRS et de tableaux, statistiques par événement et de groupe, un moteur d'arrière-plan qui exécute les analyses, et une ligne de commande qui rejoue un export à partir de la fiche de provenance enregistrée à côté. Il calcule et écrit les nombres ; l'application les dessine. Anciennement PhysicsLibrary.",
+            "infoPageDescription": "Un paquet Python open-source, <code>pip install PyATCLI</code>, qui regroupe les outils d'analyse et de traitement de données derrière mes travaux en physique et en neuroscience : chargement de photométrie par fibre, de NIRS et de tableaux, statistiques par événement et de groupe, un pipeline de traitement dont chaque choix est une option (et un paragraphe de méthodes écrit à partir de ce qui a réellement été fait), un moteur d'arrière-plan qui exécute les analyses, et une ligne de commande qui rejoue un export à partir de la fiche de provenance enregistrée à côté. Il calcule et écrit les nombres ; l'application les dessine. Anciennement PhysicsLibrary.",
             "infoPageButtonText": "Dépot GitHub"
         },
         "physicsAnalysisGui": {
@@ -47,15 +47,15 @@
             "infoPageFeatureGroups": [
                 {
                     "header": "Chargement de Données",
-                    "summary": "Chargez des dossiers TDT, des exports NIRS Oxysoft/Artinis, des fichiers Excel/CSV/TSV, des images EFNMR/IRM Terranova PT2, et des dossiers d'études de champs textuels, le tout via un menu unifié, avec détection automatique de plusieurs tableaux côte à côte dans une même feuille."
+                    "summary": "Chargez des dossiers TDT, des exports NIRS Oxysoft/Artinis, des fichiers Excel/CSV/TSV, des images EFNMR/IRM Terranova PT2, et des dossiers d'études de champs textuels, le tout via un menu unifié ou en déposant un fichier ou un dossier sur la fenêtre, avec détection automatique de plusieurs tableaux côte à côte dans une même feuille."
                 },
                 {
                     "header": "Tracé Interactif",
-                    "summary": "Molette pour zoomer, glisser pour naviguer, et sélection rectangulaire d'une région, avec des points de repère au survol qui s'accrochent à la ligne la plus proche et affichent les valeurs exactes. Basculez entre le rendu matplotlib et PyQtGraph accéléré par GPU à tout moment, avec une mise à l'échelle des polices selon le nombre d'or qui reste nette à chaque redimensionnement."
+                    "summary": "Molette pour zoomer, glisser pour naviguer, et sélection rectangulaire d'une région, avec des points de repère au survol qui s'accrochent à la ligne la plus proche et affichent les valeurs exactes. Basculez entre le rendu matplotlib et PyQtGraph accéléré par GPU à tout moment, avec une mise à l'échelle des polices selon le nombre d'or qui reste nette à chaque redimensionnement. Le travail lent s'exécute dans un processus de moteur séparé, si bien que la fenêtre ne se fige jamais, avec une notification de progression et un bouton Annuler qui arrête vraiment la tâche."
                 },
                 {
                     "header": "Outils d'Analyse",
-                    "summary": "Ajustez des courbes linéaires, exponentielles, gaussiennes ou sinusoïdales sur n'importe quel segment, exécutez des FFT avec annotation automatique des pics, générez des histogrammes PETH / Z-score autour des événements pour les enregistrements TDT, et visualisez des images EFNMR/IRM PT2 avec sélection de palette et export PNG/PDF/SVG."
+                    "summary": "Ajustez des courbes linéaires, exponentielles, gaussiennes ou sinusoïdales sur n'importe quel segment, exécutez des FFT avec annotation automatique des pics, générez des histogrammes PETH / Z-score autour des événements pour les enregistrements TDT, comparez côte à côte la réponse moyenne à plusieurs événements, et voyez le Z-score d'un enregistrement entier avec ses courbes en arrière-plan. Trouvez les pics significatifs par rapport à un niveau de hasard obtenu par permutation, lancez une analyse de groupe sur plusieurs enregistrements avec un modèle à effets mixtes par mesure, et visualisez des images EFNMR/IRM PT2 avec sélection de palette et export PNG/PDF/SVG. Chaque analyse s'ouvre dans un onglet au bas de la fenêtre, qui peut devenir une fenêtre à part et se réancrer, et dont la figure se personnalise avec Edit Attributes."
                 },
                 {
                     "header": "Marqueurs d'Événements",
@@ -64,6 +64,14 @@
                 {
                     "header": "Analyse d'Études de Champs Textuels",
                     "summary": "Comparez n'importe quelle paire de champs à travers un dossier de données JSON par sujet, sans schéma fixe, grâce aux plongements sentence-transformers et aux métriques de similarité appariée. Une validation statistique complète suit : test de permutation, correction FDR de Benjamini-Hochberg, d de Cohen, régression contrôlée par le nombre de mots, intervalles de confiance bootstrap, et vérifications de sensibilité leave-one-out."
+                },
+                {
+                    "header": "Pipeline de Traitement",
+                    "summary": "Choisissez en un seul endroit comment chaque enregistrement est traité : la méthode de correction de mouvement et la portion sur laquelle elle est ajustée, la ligne de base du dF/F (double ou simple exponentielle, linéaire, isosbestique ajustée, médiane ou percentile glissant), le filtre passe-bas, le lissage et la ligne de base du Z-score. Ces choix s'appliquent à tout ce que vous ouvrez, y compris les analyses de groupe, et Copy pipeline écrit ce qu'un enregistrement a réellement subi sous forme de paragraphe de méthodes, avec les valeurs choisies et les versions des logiciels, prêt pour un article."
+                },
+                {
+                    "header": "Exports Reproductibles",
+                    "summary": "Chaque export reçoit à côté de lui une fiche de provenance, avec les versions des logiciels, l'empreinte de l'enregistrement, les réglages du pipeline et les paramètres de l'analyse, et la ligne de commande la rejoue pour vérifier que les nombres concordent. Les figures s'exportent en PNG, TIFF, PDF ou SVG à une taille et une résolution exactes, avec les données de chaque graphique enregistrées à côté."
                 }
             ]
         },

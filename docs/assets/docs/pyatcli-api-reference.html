@@ -29,6 +29,8 @@ pl.process_tdt_folder(folder_path)
 </li>
 <li><p><a href="#non-destructive-splicing">Non-destructive splicing</a></p>
 </li>
+<li><p><a href="#pipeline-options-and-the-methods-text">Pipeline options and the methods text</a></p>
+</li>
 <li><p><a href="#recordings-and-saved-state">Recordings and saved state</a></p>
 </li>
 <li><p><a href="#writing-saved-state">Writing saved state</a></p>
@@ -102,7 +104,7 @@ Oxysoft <code>.txt</code> exports.</p>
 explicitly) and routes to the matching loader.</p>
 <ul>
 <li><code>regression_method</code> (<code>&quot;ransac&quot; | &quot;huber&quot; | &quot;ols&quot;</code>): TDT-only, forwarded
-to the motion-correction step (see <a href="#process_tdt_folderfolder_path-regression_methodols-progressnone"><code>process_tdt_folder</code></a>). Ignored for Oxysoft, which has no
+to the motion-correction step (see <a href="#process_tdt_folderfolder_path-regression_methodols-progressnone-optionsnone"><code>process_tdt_folder</code></a>). Ignored for Oxysoft, which has no
 such correction step.</li>
 </ul>
 <h3 id="load_dataset_filefile_path-str-progressnone---dataset"><code>load_dataset_file(file_path: str, progress=None) -&gt; Dataset</code></h3>
@@ -215,12 +217,14 @@ array, otherwise a widened copy (float32, float16, integer arrays, lists);
 NaN and inf are kept as they are.</p>
 <hr>
 <h2 id="tdt-photometry-processing">TDT Photometry Processing</h2>
-<h3 id="process_tdt_folderfolder_path-regression_methodols-progressnone"><code>process_tdt_folder(folder_path, regression_method=&quot;ols&quot;, progress=None)</code></h3>
+<h3 id="process_tdt_folderfolder_path-regression_methodols-progressnone-optionsnone"><code>process_tdt_folder(folder_path, regression_method=&quot;ols&quot;, progress=None, options=None)</code></h3>
 <p>The full photometry pipeline, and the main TDT entry point: load block →
 extract 465nm signal (+ optional 415nm isosbestic reference) → motion
 correction → bleaching baseline → ΔF/F → denoise → event markers.
 ΔF/F is the motion-corrected residual divided by the 465 channel&#39;s
-bleaching baseline (<code>f0</code>); everything is computed in float64.</p>
+bleaching baseline (<code>f0</code>); everything is computed in float64. <code>options</code> are the
+<a href="#pipeline-options-and-the-methods-text">pipeline options</a> (the regression&#39;s fit window, what F0 is, the
+low-pass filter); <code>None</code> is the defaults, which are what this did before they were options.</p>
 <ul>
 <li><code>regression_method</code> (<code>&quot;ransac&quot; | &quot;huber&quot; | &quot;ols&quot;</code>, see
 <a href="#regression_methods"><code>REGRESSION_METHODS</code></a> below) — which regression the
@@ -322,7 +326,7 @@ not say how long it is; <code>n_splices</code> is how many splices took effect;
 optional downsampling.</p>
 <h3 id="correct_bleachingy-fs---corrected-trend"><code>correct_bleaching(y, fs) -&gt; (corrected, trend)</code></h3>
 <p>Estimates and removes the photobleaching trend via masked curve fitting.</p>
-<h3 id="denoise_signalsignal-fs-cutoff5-order2"><code>denoise_signal(signal, fs, cutoff=5, order=2)</code></h3>
+<h3 id="denoise_signalsignal-fs-cutoff5-order2--at-the-default-5-hz-order-2-the-filter-is-filtfilt-as-it-always-was-any-other-setting-uses-sosfiltfilt-second-order-sections"><code>denoise_signal(signal, fs, cutoff=5, order=2)</code> — at the default 5 Hz, order 2 the filter is <code>filtfilt</code> as it always was; any other setting uses <code>sosfiltfilt</code> (second-order sections)</h3>
 <p>Low-pass Butterworth filter for ΔF/F signals.</p>
 <h3 id="get_event_markersdata---listdict"><code>get_event_markers(data) -&gt; list[dict]</code></h3>
 <p>Extracts behavioral event markers from every populated TDT epoc store
@@ -431,7 +435,7 @@ Returns <code>{&quot;slope&quot;, &quot;intercept&quot;, &quot;crop_x&quot;, &qu
 with <code>p0_fn(x_seg, y_seg) -&gt; initial_guesses</code> supplying the starting
 parameters. Returns <code>{&quot;popt&quot;, &quot;y_fit&quot;, &quot;r2&quot;, &quot;success&quot;, &quot;error&quot;}</code>.</p>
 <h3 id="peak-detection">Peak detection</h3>
-<h4 id="find_significant_peakstime_array-signal-z_threshold50-min_distance_sec10-include_troughsfalse---listdict"><code>find_significant_peaks(time_array, signal, z_threshold=5.0, min_distance_sec=1.0, include_troughs=False) -&gt; list[dict]</code></h4>
+<h4 id="find_significant_peakstime_array-signal-z_threshold50-min_distance_sec10-include_troughsfalse-start_buffer_s100---listdict"><code>find_significant_peaks(time_array, signal, z_threshold=5.0, min_distance_sec=1.0, include_troughs=False, start_buffer_s=10.0) -&gt; list[dict]</code></h4>
 <p>Auto-detects statistically significant transients directly from the
 signal — instead of trusting that externally-supplied event markers
 actually line up with real activity. Z-scores the whole recording
@@ -440,6 +444,18 @@ picks local maxima at or above <code>z_threshold</code> (default 5, the usual
 five-sigma convention), at least <code>min_distance_sec</code> apart.
 <code>include_troughs</code> also detects significant negative deflections
 (off by default).</p>
+<p><code>start_buffer_s</code> (default 10) is a number of seconds at the start of the
+recording in which no peak is reported. A trace is least settled right after
+the light comes on, and the tail of the bleaching there reads as unusual: on
+synthetic recordings with no transients at all, the false five-sigma peaks of
+the detector sat in the first seconds, and a 10 s buffer removed them. Only
+the search skips the start — the mean and standard deviation still come from
+the whole recording, so no peak&#39;s z-score depends on the buffer (a peak within
+<code>min_distance_sec</code> of the buffer&#39;s end that a taller peak inside it used to
+hide can appear). The buffer does not remove false peaks that motion artefacts
+cause later in the recording. 10 s was chosen on synthetic data; look at the
+first minute of your own recording and set what it needs (<code>0</code> searches
+everything). Records written before 2026.11.2 replay with <code>0</code>.</p>
 <p><strong>Returns</strong> <code>[{&quot;time&quot;, &quot;z_score&quot;, &quot;kind&quot;: &quot;peak&quot;|&quot;trough&quot;}, ...]</code>, sorted
 by time.</p>
 <h4 id="find_peak_near_eventstime_array-signal-event_times-pre-post-z_threshold50-include_troughsfalse-progressnone---listdict"><code>find_peak_near_events(time_array, signal, event_times, pre, post, z_threshold=5.0, include_troughs=False, progress=None) -&gt; list[dict]</code></h4>
@@ -453,11 +469,53 @@ threshold reports a &quot;response&quot; by chance in most windows. On a real
 fibre-photometry recording searched the way PyAT does it (0.5 s-smoothed
 ΔF/F, 5 s baseline, 10 s response window), random pseudo-events were
 reported as having a response 58% of the time at 2.5, 40% at 3, 21% at 4
-and 10% at 5; the exact rates depend on the window lengths.</p>
+and 10% at 5; the exact rates depend on the window lengths. Even at 5,
+&quot;found&quot; is not proof: <code>shuffle_null_near_events</code> measures the chance rate on
+the recording itself.</p>
 <p><strong>Returns</strong> one dict per <code>event_time</code> (same order):
 <code>{&quot;event_time&quot;, &quot;found&quot;, &quot;peak_time&quot;, &quot;latency&quot;, &quot;z_score&quot;, &quot;kind&quot;}</code> —
 <code>found</code> is <code>False</code> (with the rest <code>None</code>) if the window was unusable or
 nothing cleared <code>z_threshold</code>.</p>
+<h4 id="peak_scan_summarygroups-nullsnone---listdict"><code>peak_scan_summary(groups, nulls=None) -&gt; list[dict]</code></h4>
+<p>The table of a Peak Finder scan of several event types: one row per type -- <code>{&quot;event&quot;, &quot;occurrences&quot;, &quot;found&quot;, &quot;hit_rate&quot;, &quot;avg_z&quot;, &quot;chance_hit_rate&quot;, &quot;p_shuffle&quot;, &quot;p_holm&quot;}</code> -- the most often aligned first (ties keep the order of <code>groups</code>). <code>groups</code> is <code>{name: [find_peak_near_events results]}</code>; <code>nulls</code>
+is <code>{name: shuffle_null_near_events answer}</code> (with <code>p_count_holm</code>, as the engine gives it) or <code>None</code>. <code>avg_z</code> is the average z-score of the peaks that were
+found (<code>None</code> if none were); the three chance fields are <code>None</code> where no null was measured for that type. The engine&#39;s <code>compute.peaks</code> (scope <code>events</code>)
+returns it as <code>summary</code>, and the <code>peak_finder</code> analysis&#39;s <code>scan</code> table is made of the same rows, so PyAT&#39;s window, its CSV and a script agree.</p>
+<h4 id="shuffle_null_near_eventstime_array-signal-event_times-pre-post-z_threshold50-include_troughsfalse-n_shuffles1000-seed0-progressnone---dict"><code>shuffle_null_near_events(time_array, signal, event_times, pre, post, z_threshold=5.0, include_troughs=False, n_shuffles=1000, seed=0, progress=None) -&gt; dict</code></h4>
+<p>How often <code>find_peak_near_events</code> finds a &quot;response&quot; <strong>by chance</strong> on this
+recording, and whether the given events do better than that.</p>
+<p>The whole train of events is moved as one by a random circular shift of the
+part of the recording where a complete window fits (so the spacing between the
+events, and with it how much their windows overlap, is kept), <code>n_shuffles</code>
+times, and each shifted event is searched exactly as a real one is
+(the same <code>pre</code>/<code>post</code>, baseline, <code>z_threshold</code> and <code>include_troughs</code>). From that:</p>
+<ul>
+<li><code>chance_hit_rate</code>: the share of shifted windows that reached <code>z_threshold</code>.</li>
+<li><code>p_count</code>: how often a shifted train had at least as many events with a
+response as the real one: <code>(1 + the shuffles that did) / (1 + n_shuffles)</code>, over the
+events whose window is complete. It is a permutation p-value for &quot;these event
+times are unrelated to the signal&quot;.</li>
+<li><code>p_event</code>: per event, the share of all shifted windows whose largest |z| was at
+least that event&#39;s, in the same <code>(1 + k) / (1 + n)</code> form. Not corrected for the
+number of events or event types looked at (the <code>peak_finder</code> analysis adds a Holm
+column across event types when it scans them all).</li>
+</ul>
+<p>The smallest p-value possible is <code>1 / (1 + n_shuffles)</code>. <code>seed</code> fixes the
+shifts: the same inputs and seed give the same answer. One shuffle of 20 events
+costs about two milliseconds, so the default 1,000 shuffles take a couple of
+seconds. <code>progress</code> ticks once per shuffle.</p>
+<p>Events whose window is cut by the recording&#39;s edge cannot be moved: they stay put
+in every shuffle and take no part in <code>p_count</code>; their <code>p_event</code> is read against the
+complete shifted windows. If the recording really has responses, some shifted
+windows land on them and count as chance, so <code>chance_hit_rate</code> reads higher than it
+would without them and the p-values are conservative — a response is never made to
+look more significant than it is, the more so the denser the events.</p>
+<p><strong>Returns</strong> a dict: <code>available</code> (<code>False</code> with a <code>reason</code> when nothing could be
+shifted: a recording shorter than the window, or no event with a complete window —
+the numbers are then <code>None</code>), <code>n_events</code>, <code>n_tested</code> (events with a complete window),
+<code>n_shuffles</code>, <code>seed</code>, <code>found</code> (events with a response among those tested),
+<code>expected_by_chance</code> (the mean of that over the shuffles), <code>chance_hit_rate</code>,
+<code>p_count</code>, and <code>p_event</code> (one per event, <code>None</code> where the window holds no samples).</p>
 <h3 id="area-under-the-curve">Area under the curve</h3>
 <h4 id="compute_auc_from_tracex-y---dict"><code>compute_auc_from_trace(x, y) -&gt; dict</code></h4>
 <p>Trapezoidal AUC, split by sign — the shared core <code>compute_auc_window</code>
@@ -492,6 +550,12 @@ isn&#39;t evenly divisible).</p>
 <p>Per-trial + group version of the above, mirroring <code>compute_auc_matrix</code>.
 Returns <code>{&quot;per_trial&quot;: [...], &quot;group&quot;: {...}}</code>, each entry
 <code>{&quot;peak_amplitude&quot;, &quot;latency&quot;, &quot;mean_bins&quot;}</code>.</p>
+<h4 id="bin_rangesedges---liststr"><code>bin_ranges(edges) -&gt; list[str]</code></h4>
+<p>The names of the mean-time bins in <code>edges</code> (a <code>mean_bins</code> list) as <code>&quot;start-end&quot;</code> in
+seconds: <code>&quot;0.0-1.0&quot;</code>, <code>&quot;1.0-2.0&quot;</code>, ... Each edge is written with the fewest decimals
+(at least one) that show it as it is, so bins of 0.05 s are <code>&quot;0.00-0.05&quot;</code>, <code>&quot;0.05-0.10&quot;</code>,
+and no two bins share a name. The <code>event_peth</code> and <code>event_compare</code> tables use them
+for their <code>Bin &lt;range&gt;s Mean</code> columns.</p>
 <hr>
 <h2 id="non-destructive-splicing">Non-destructive splicing</h2>
 <p>Both functions work on 1D arrays <em>and</em> 2D <code>(n_channels, n_samples)</code>
@@ -513,6 +577,10 @@ stays contiguous. Markers inside the cut are dropped; markers after it
 are shifted by the same amount. Same <code>extra_channels</code> support as above.</p>
 <p><strong>Returns</strong> same shape as <code>splice_keep_inside</code>, or <code>None</code> if there isn&#39;t
 usable signal on both sides of the cut to stitch together.</p>
+<h3 id="trim_rangex-first-last---start-end"><code>trim_range(x, first, last) -&gt; (start, end)</code></h3>
+<p>The range that is left of a recording with time axis <code>x</code> once <code>first</code> seconds are taken off its start and <code>last</code> off its end (the range a
+<code>keep_inside</code> splice then keeps; PyAT&#39;s <em>Trim ends</em> uses it). Raises <code>ValueError</code>, in words a person can read, if an amount is negative, both are zero,
+or nothing would be left. <code>describe_duration(seconds)</code> is how its messages say a length of time: <code>&quot;44 s&quot;</code>, <code>&quot;2.5 min&quot;</code> (seconds up to two minutes).</p>
 <h3 id="replay_splicesx-splices-markersnone-detected_markersnone---dict"><code>replay_splices(x, splices, markers=None, detected_markers=None) -&gt; dict</code></h3>
 <p>Replays a saved list of splices (PyAT&#39;s <code>splice.json</code>: <code>{&quot;mode&quot;, &quot;start&quot;, &quot;end&quot;}</code> each, in the order they were applied; <code>&quot;cut_out&quot;</code> cuts, any other
 mode keeps the range) on a time axis and marker lists, <strong>without touching
@@ -523,6 +591,83 @@ samples is skipped, as PyAT skips it.</p>
 <p><strong>Returns</strong> <code>{&quot;x&quot;, &quot;markers&quot;, &quot;detected_markers&quot;, &quot;applied&quot;}</code> (<code>applied</code> =
 how many splices took effect).</p>
 <hr>
+<h2 id="pipeline-options-and-the-methods-text">Pipeline options and the methods text</h2>
+<p><code>pipeline.py</code> is the registry of the choices the processing makes — one place, declared next to the code that obeys them — and <code>methods.py</code> writes the methods paragraph from them.</p>
+<table>
+<thead>
+<tr>
+<th>option</th>
+<th>default</th>
+<th>what it does</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>motion.fit_start_s</code>, <code>motion.fit_end_s</code></td>
+<td><code>None</code></td>
+<td>fit the motion-correction regression only on the samples from / to this time (seconds on the recording&#39;s time axis); the fitted line is applied to every sample</td>
+</tr>
+<tr>
+<td><code>motion.exclude_start_s</code>, <code>motion.exclude_end_s</code></td>
+<td><code>None</code></td>
+<td>leave this stretch out of the regression (both or neither)</td>
+</tr>
+<tr>
+<td><code>dff.f0_method</code></td>
+<td><code>&quot;double_exponential&quot;</code></td>
+<td>what the motion-corrected signal is divided by: <code>double_exponential</code>, <code>single_exponential</code>, <code>linear</code> (fitted to the samples above the stream&#39;s median), <code>fitted_isosbestic</code> (GuPPy&#39;s (465 - fitted 415) / fitted 415; with no 415 stream the double exponential is used, with a <code>RuntimeWarning</code>), <code>running_median</code>, <code>running_percentile</code></td>
+</tr>
+<tr>
+<td><code>dff.f0_window_s</code>, <code>dff.f0_percentile</code></td>
+<td><code>60.0</code>, <code>10.0</code></td>
+<td>the window and percentile of the running baselines (evaluated every window/10 and joined by straight lines)</td>
+</tr>
+<tr>
+<td><code>denoise.enabled</code>, <code>denoise.cutoff_hz</code>, <code>denoise.order</code></td>
+<td><code>True</code>, <code>5.0</code>, <code>2</code></td>
+<td>the zero-phase Butterworth low-pass filter of the dF/F; the default setting is computed as it always was (<code>filtfilt</code>), any other with <code>sosfiltfilt</code></td>
+</tr>
+<tr>
+<td><code>smoothing.window_s</code></td>
+<td><code>0.5</code></td>
+<td>the moving average every event-locked analysis smooths the dF/F with first (0: none)</td>
+</tr>
+<tr>
+<td><code>zscore.baseline_start_s</code>, <code>zscore.baseline_end_s</code>, <code>zscore.statistic</code></td>
+<td><code>None</code>, <code>0.0</code>, <code>&quot;mean_sd&quot;</code></td>
+<td>the baseline a trial is z-scored against, in seconds from the event (<code>None</code>: the start of the window; 0: the event), and <code>mean_sd</code> (with the robust pull-in) or <code>median_mad</code> (median and 1.4826 x MAD)</td>
+</tr>
+</tbody></table>
+<p>Every default is what the code did before the option existed, bit for bit, so a recording saved before the options replays unchanged.</p>
+<h3 id="pipelineoptionsvaluesnone"><code>PipelineOptions(values=None)</code></h3>
+<p>The value of every option: the given <code>{name: value}</code> checked, the defaults for the rest. <code>ValueError</code> says what is wrong (an unknown name lists the real ones; a value out of range; a window that ends
+before it starts). <code>options[&quot;denoise.cutoff_hz&quot;]</code>, <code>.to_dict()</code> (every option), <code>.changed()</code> (only the non-defaults), <code>.is_default()</code>, <code>.with_values({...})</code>, <code>.step_values(&quot;denoise&quot;)</code>;
+<code>PipelineOptions.from_dict(x)</code> accepts a dict, a <code>PipelineOptions</code> or <code>None</code>; <code>pipeline.options_of(cache)</code> is the options a loaded recording was processed with.</p>
+<h3 id="the-registry">The registry</h3>
+<ul>
+<li><code>pipeline.describe() -&gt; dict</code> (<code>pl.describe_pipeline</code>) — the steps (each with the kinds of recording it applies to, <code>sources</code>: <code>[&quot;TDT&quot;]</code> for the motion correction, the dF/F baseline and the filter, <code>None</code> for the rest) and, for each option, <code>name</code>, <code>kind</code>, <code>default</code>, <code>label</code>, <code>doc</code>, <code>choices</code>, <code>minimum</code>, <code>maximum</code>, <code>unit</code>; the engine&#39;s <code>pipeline.options</code> and
+<code>python -m PyATCLI pipeline</code> are this. <code>pipeline.defaults()</code>, <code>pipeline.all_options()</code>, <code>pipeline.steps()</code>.</li>
+<li><code>pipeline.parse_assignments([&quot;denoise.cutoff_hz=8&quot;]) -&gt; dict</code> — what the command line&#39;s <code>--pipeline</code> flags become.</li>
+<li>To add an option: declare it with <code>pipeline.register_step(name, title, order, [pipeline.Option(...)], check=...)</code> in the module that does the work, read it where it is used, and give the step a sentence with
+<code>@pipeline.sentence(name)</code> (<code>clause=True</code> for a clause of the sentence that says how the dF/F was made). Nothing else changes: the saved state, the provenance record, the command line, the engine and the app&#39;s
+dialog read the registry.</li>
+</ul>
+<h3 id="where-the-options-go">Where the options go</h3>
+<p><code>compute_dff(y_465, y_415, fs, regression_method=&quot;ols&quot;, progress=None, options=None, x=None)</code> and <code>process_tdt_folder(folder_path, regression_method=&quot;ols&quot;, progress=None, options=None)</code> take them (<code>x</code> is the
+time axis the regression&#39;s window is counted on); <code>load_recording(path, ..., pipeline={name: value})</code> processes with them, on top of what is saved for the recording; <code>smooth_for(cache, y)</code> and
+<code>get_zscore_slice(..., options=)</code> / <code>compute_event_zscore_peth(..., options=)</code> / <code>find_peak_near_events(..., options=)</code> apply the analysis ones; <code>cache[&quot;pipeline&quot;]</code> holds what a recording was processed with
+(splices and analyses read it there); <code>saved_state.set_pipeline(path, {...})</code> / <code>write_saved_pipeline(path, options)</code> keep them in <code>JSON saves/pipeline.json</code>; <code>provenance.pipeline_parameters(regression_method, options)</code> reports them in a record.</p>
+<h3 id="processing_textoptionsnone-regression_methodols---str"><code>processing_text(options=None, regression_method=&quot;ols&quot;) -&gt; str</code></h3>
+<p>How the dF/F was made, as the sentence of a methods section (&quot;dF/F was computed by OLS regression of the 415 nm channel onto the 465 nm channel, ... low-pass filtered (...)&quot;, no
+final full stop): the motion correction, the baseline and the filter for <code>options</code> (<code>{name: value}</code>, a <code>PipelineOptions</code> or <code>None</code> for the defaults) on a TDT recording with a 415 nm
+reference. The group analysis&#39;s report uses it for its own methods paragraph.</p>
+<h3 id="methods_textstatenone--softwaretrue-regression_methodnone-splicesnone-appnone---str"><code>methods_text(state=None, *, software=True, regression_method=None, splices=None, app=None) -&gt; str</code></h3>
+<p>The methods paragraph for a paper: each step&#39;s sentence for the values in force, in the order of the pipeline (the motion correction, the baseline and the filter are clauses of one sentence; splices,
+smoothing and the z-score are sentences of their own), then — unless <code>software</code> is False — &quot;Analyses were run with PyATCLI ... on Python ..., numpy ..., scipy ...&quot;. <code>state</code> is a recording&#39;s path (what is saved for it is
+read), a provenance record or the path of one (what produced that export, with the software that did), a recording state, a cache, a <code>PipelineOptions</code> or <code>{name: value}</code>, or <code>None</code> (the defaults). A step with
+nothing to say for the recording (the dF/F steps for an Oxysoft export, splices for an unspliced recording) says nothing; a recording with no 415 nm stream is described as computed from the 465 alone.</p>
+<pre><code class="language-python">&gt;&gt;&gt; pl.methods_text(software=False).split(&quot;. &quot;)[0] + &quot;.&quot;
+&#39;dF/F was computed by OLS regression of the 415 nm channel onto the 465 nm channel, with the fitted 415 subtracted, then divided by a double-exponential photobleaching baseline fitted to the 465 nm channel, then low-pass filtered (Butterworth, 2nd order, 5 Hz, zero-phase).&#39;
+</code></pre>
 <h2 id="recordings-and-saved-state">Recordings and saved state</h2>
 <p><code>recording.py</code> is a recording as PyAT holds it, without the GUI: everything
 between &quot;open a recording&quot; and &quot;run an analysis&quot; that isn&#39;t drawing. The app
@@ -557,6 +702,10 @@ that dict, so a script gets the same numbers the app shows.</p>
 <td>user-placed markers (see <a href="#markers">Markers</a>)</td>
 </tr>
 <tr>
+<td><code>pipeline</code></td>
+<td>the <a href="#pipeline-options-and-the-methods-text">pipeline options</a> the recording was processed with, <code>{name: value}</code> for every option</td>
+</tr>
+<tr>
 <td>TDT: <code>raw</code>, <code>corr</code>, <code>detected_markers</code>, <code>signals</code></td>
 <td>motion-corrected fluorescence, dF/F, TDT&#39;s own events, and <code>{key: {&quot;label&quot;, &quot;y&quot;}}</code> for <code>normalized</code>, <code>main_driver</code>, <code>isosbestic</code></td>
 </tr>
@@ -581,6 +730,9 @@ markers were saved before the <code>JSON saves/</code> folder existed (only read
 <li><code>annotation_sidecar_path(source_path, filename)</code> — the same place for
 <code>highlights.json</code> / <code>text_annotations.json</code>.</li>
 <li><code>splice_sidecar_path(source_path)</code> — <code>splice.json</code>, next to <code>markers.json</code>.</li>
+<li><code>pipeline_sidecar_path(source_path)</code> — <code>pipeline.json</code>: the pipeline options chosen for the recording (every option; there is no file while all are defaults).
+<code>read_saved_pipeline(source_path) -&gt; dict</code> ({} if none; <code>ValueError</code> if the registry does not accept it) and <code>resolve_pipeline(source_path, explicit=None, use_saved=True) -&gt; (PipelineOptions, warnings)</code>
+(the defaults, then what is saved, then <code>explicit</code> on top).</li>
 <li><code>read_saved_splices(source_path) -&gt; list[dict]</code> — every saved splice in the
 order it was applied (<code>[]</code> if none; the old single-splice dict format is
 accepted).</li>
@@ -838,6 +990,11 @@ round-trips through JSON with <code>to_dict()</code> / <code>GroupSpec.from_dict
 <td><code>&quot;ols&quot;</code></td>
 <td>motion correction used when each recording&#39;s ΔF/F is recomputed</td>
 </tr>
+<tr>
+<td><code>pipeline</code></td>
+<td><code>{}</code></td>
+<td>pipeline options (<code>pipeline.py</code>) every recording is processed with, <code>{option name: value}</code> — only the ones that are not their default — on top of what each recording has saved for itself; <code>zscore.statistic</code> (<code>median_mad</code>) also decides how a trial&#39;s baseline is taken. <code>GroupSpec.from_pipeline(options, **fields)</code> makes a spec from them, with <code>smooth_seconds</code> starting from <code>smoothing.window_s</code> and <code>baseline</code> from <code>zscore.baseline_start_s</code> / <code>baseline_end_s</code> where those are set (what <code>fields</code> gives is used as it is)</td>
+</tr>
 </tbody></table>
 <p>The defaults follow TDT&#39;s own fiber photometry epoch-averaging example
 (<code>TRANGE = [-10, 20]</code> there is start and <em>duration</em>: −10 s to +10 s; baseline
@@ -928,6 +1085,17 @@ always there are <code>GROUP_TABLES</code> -- both in the engine&#39;s contract 
 <p>The plain-text report <code>write_group_results</code> writes to
 <code>analysis_report.txt</code>: the design, the results per measure (with the
 notes), and an auto-written methods paragraph to adapt for a manuscript.</p>
+<h3 id="pooled_subject_valuesmeans-measure-groups---dict"><code>pooled_subject_values(means, measure, groups) -&gt; dict</code></h3>
+<h3 id="summary_statsvalues---dict"><code>summary_stats(values) -&gt; dict</code></h3>
+<h3 id="normal_qqvalues---dict"><code>normal_qq(values) -&gt; dict</code></h3>
+<h3 id="significance_starsp---str"><code>significance_stars(p) -&gt; str</code></h3>
+<p>The numbers the figures of a group analysis are made of (<code>analysis/group/figure_stats.py</code>), so a script, the data file beside a figure and PyAT&#39;s picture of it
+all agree. <code>pooled_subject_values(results.subject_means, &quot;auc&quot;, {&quot;label&quot;: [marker names], ...})</code> gives <code>{label: {subject: value}}</code>: each subject&#39;s value for a
+group of markers is the average of whichever of them it has data for (every label is in the answer, in the order given). <code>summary_stats(values)</code> is
+<code>{&quot;n&quot;, &quot;mean&quot;, &quot;sem&quot;, &quot;q1&quot;, &quot;median&quot;, &quot;q3&quot;}</code> of a group&#39;s values (<code>sem</code>, the sample standard deviation over the square root of n, is <code>None</code> below two values; all
+<code>None</code> but <code>n</code> for none). <code>normal_qq(values)</code> is what a normal Q-Q plot draws: <code>{&quot;theoretical&quot;, &quot;ordered&quot;, &quot;slope&quot;, &quot;intercept&quot;}</code>. <code>significance_stars(p)</code> writes
+a p-value as <code>&quot;***&quot;</code> (below 0.001), <code>&quot;**&quot;</code> (0.01), <code>&quot;*&quot;</code> (0.05), <code>&quot;ns&quot;</code>, or <code>&quot;&quot;</code> for a p that is not a number. The mean and SEM across subjects of a trace are
+<code>compute_group_stats</code>.</p>
 <h3 id="scan_recordingsfolders-base_path-store_labelsnone-progressnone---listdict"><code>scan_recordings(folders, base_path, store_labels=None, progress=None) -&gt; list[dict]</code></h3>
 <h3 id="scan_recordingfolder-base_path-store_labelsnone-progressnone---dict"><code>scan_recording(folder, base_path, store_labels=None, progress=None) -&gt; dict</code></h3>
 <p>What each recording contains, without processing its signal (about a third of a
@@ -941,9 +1109,12 @@ back with its <code>error</code> set; it never stops the others.</p>
 <h3 id="default_subject_namesfolders-base_path---liststr"><code>default_subject_names(folders, base_path) -&gt; list[str]</code></h3>
 <p>Each recording&#39;s folder name; two that share one get their path from <code>base_path</code>
 on, so names start out unique.</p>
-<h3 id="load_group_recordingfolder-regression_methodols-store_labelsnone-progressnone---dict"><code>load_group_recording(folder, regression_method=&quot;ols&quot;, store_labels=None, progress=None) -&gt; dict</code></h3>
+<h3 id="load_group_recordingfolder-regression_methodols-store_labelsnone-progressnone-pipelinenone---dict"><code>load_group_recording(folder, regression_method=&quot;ols&quot;, store_labels=None, progress=None, pipeline=None) -&gt; dict</code></h3>
 <p>One recording exactly as the single-recording analyses see it:
-<code>load_tdt_recording</code>, reduced to <code>{&quot;x&quot;, &quot;y&quot;, &quot;fs&quot;, &quot;groups&quot;, &quot;n_splices&quot;, &quot;warnings&quot;}</code> — <code>y</code> the normalized dF/F, <code>groups</code> the events by name.</p>
+<code>load_tdt_recording</code>, reduced to <code>{&quot;x&quot;, &quot;y&quot;, &quot;fs&quot;, &quot;groups&quot;, &quot;n_splices&quot;, &quot;warnings&quot;}</code> — <code>y</code> the normalized dF/F, <code>groups</code> the events by name. <code>pipeline</code>
+is <code>{option name: value}</code>: pipeline options to process it with, on top of the ones saved for it;
+a choice the recording saved for itself that <code>pipeline</code> did not make is used, and said in <code>warnings</code>.
+<code>run_group_analysis</code> passes the spec&#39;s <code>pipeline</code> to its loader (only when the spec has some).</p>
 <h3 id="run_group_analysisspec-out_dirnone-progressnone-loadload_group_recording-extra_writers---groupresults"><code>run_group_analysis(spec, out_dir=None, progress=None, load=load_group_recording, extra_writers=()) -&gt; GroupResults</code></h3>
 <p>The whole analysis, headless: each recording of <code>spec.subjects</code> is loaded (one at
 a time, so a large group never holds more than one signal), its trials cut and
@@ -1083,8 +1254,13 @@ dict and fills in the defaults without running anything.</p>
 <td><code>zscore</code>, <code>mean_sem</code>, <code>trials</code>, <code>auc</code>, <code>peak</code>, <code>bins</code></td>
 </tr>
 <tr>
+<td><code>event_compare</code></td>
+<td>the average Z-score of several events overlaid: each one&#39;s mean/SEM trace, and its peak, latency, AUC and time bins side by side</td>
+<td><code>traces</code>, <code>summary</code></td>
+</tr>
+<tr>
 <td><code>peak_finder</code></td>
-<td>statistically significant peaks: whole recording, or near events</td>
+<td>statistically significant peaks: whole recording (after a <code>start_buffer_s</code>), or near events (with the shuffle-null&#39;s p-values, <code>n_shuffles</code>)</td>
 <td><code>peaks</code> / <code>alignment</code> / <code>scan</code> by <code>scope</code></td>
 </tr>
 <tr>
@@ -1097,7 +1273,24 @@ dict and fills in the defaults without running anything.</p>
 <td>the processed traces themselves (dF/F and the raw channels)</td>
 <td><code>trace</code></td>
 </tr>
+<tr>
+<td><code>recording_overview</code></td>
+<td>the whole recording&#39;s traces one above another (control, signal, control fit, dF/F) with the Z-score of the dF/F over the whole recording</td>
+<td><code>overview</code></td>
+</tr>
 </tbody></table>
+<p><code>recording_overview</code> takes <code>signal</code> (which of the recording&#39;s signals to z-score, <code>normalized</code> by default), <code>method</code> (<code>standard</code>: (x - mean) / SD of the whole trace;
+<code>robust</code>: the same with the mean and SD taken after samples further than 5 robust SDs from the median are pulled in to that limit, the rule the other analyses
+use for a baseline), <code>panels</code> (a list of panel names to keep, in the order to keep them; all of them if left out) and <code>max_points</code> (0: every sample; otherwise about that many rows, keeping the lowest and highest sample of every trace in each stretch so no peak is lost;
+the Z-score is always taken over every sample). Its table <code>overview</code> has <code>time_s</code> and a column per panel: for a TDT recording <code>Control</code> (the isosbestic stream), <code>Signal</code>
+(the main driver), <code>Control Fit</code> (the signal minus what motion correction left, i.e. the control fitted to the signal), <code>Z-Score</code> and <code>ΔF/F</code>; for any other recording each
+channel and <code>Z-Score (&lt;channel&gt;)</code>. The summary has the mean and SD the Z-score used.</p>
+<p><code>event_compare</code> takes <code>events</code> (a list of names as the app lists them; all of the recording&#39;s events if left out), <code>pre_s</code>, <code>post_s</code> and <code>bin_s</code>.
+Each event is analysed exactly as <code>event_peth</code> does it (every occurrence z-scored against its own baseline, all usable trials averaged), so an
+event&#39;s row in <code>summary</code> is its <code>GROUP</code> row in <code>event_peth</code>&#39;s <code>peak</code>, <code>auc</code> and <code>bins</code> tables; <code>traces</code> holds every event&#39;s mean and SEM in one long table
+(<code>Event</code>, <code>time_from_event_s</code>, <code>mean</code>, <code>sem</code>, <code>n</code>) for overlaying. An event with no usable trial is left out with a note. The times it used are recorded
+as <code>event_groups</code>, so a provenance record replays it without the markers. Names are parameters of type <code>strs</code>: a list, or one name as plain text
+(<code>--param events=&#39;[&quot;Lever&quot;,&quot;Reward&quot;]&#39;</code> on the command line); a name is never split on commas, because a note&#39;s text can hold one.</p>
 <p><code>python -m PyATCLI kinds</code> prints every parameter of each. The signal-taking
 analyses take <code>signal</code> (<code>normalized</code> by default; for TDT also <code>main_driver</code>,
 <code>isosbestic</code>).</p>
@@ -1213,6 +1406,10 @@ method, every splice, store renames, signal names — which is not necessarily t
 an event analysis that includes the event times themselves, so the markers no longer
 matter); writes the tables and a new record if <code>out_dir</code> is given; and compares any exports
 you name, column for column.</p>
+<p>A record stores every parameter of its run, so one that lacks a parameter was written before the analysis had it. The
+replay fills such a parameter with the value that means what the analysis did then (<code>Param.legacy</code>: the Peak Finder&#39;s
+<code>start_buffer_s</code> and <code>n_shuffles</code> are <code>0</code> for records from before 2026.11.2), not with today&#39;s default, so an old
+record still reproduces its own numbers. Running the analysis anew (<code>run_analysis</code>, <code>run</code>) uses today&#39;s defaults.</p>
 <h3 id="reproduce_recordrecord-recordingnone-out_dirnone-compare-tolerance1e-4-strictfalse-progressnone-roundednone---reproduction"><code>reproduce_record(record, recording=None, out_dir=None, compare=(), tolerance=1e-4, strict=False, progress=None, rounded=None) -&gt; Reproduction</code></h3>
 <p><code>record</code> is the record dict or the path of its <code>.provenance.json</code>. <code>compare</code> lists
 exports to check against: a path, or <code>(path, table name)</code>; which table is found from the
@@ -1266,7 +1463,7 @@ numbers agree.</p>
 </tr>
 <tr>
 <td><code>group setup FOLDER... --name N [--marker M ...]</code></td>
-<td>set up a group analysis as the wizard does: find the recordings, list the markers they share (without <code>--marker</code>), check the design, write <code>analysis_settings.json</code></td>
+<td>set up a group analysis as the wizard does: find the recordings, list the markers they share (without <code>--marker</code>), check the design, write <code>analysis_settings.json</code> (<code>--pipeline NAME=VALUE</code> puts pipeline options in it)</td>
 </tr>
 <tr>
 <td><code>group run SETTINGS</code></td>
@@ -1311,7 +1508,7 @@ errors are on standard error, and anything a library prints on its own (the TDT 
 so <code>... --json | jq</code> always sees valid JSON. A failure under <code>--json</code> is one line on standard error,
 <code>{&quot;schema&quot;: 1, &quot;ok&quot;: false, &quot;error&quot;: {&quot;code&quot;, &quot;message&quot;, &quot;hint&quot;, &quot;type&quot;}}</code>, with the code one of <code>bad_parameter</code>,
 <code>invalid_input</code>, <code>not_found</code>, <code>io_error</code>, <code>analysis_failed</code>, <code>cannot_reproduce</code>, <code>unknown_operation</code>, <code>no_recording</code>,
-<code>confirmation_required</code>, <code>cancelled</code>, <code>internal_error</code>; without it, <code>error: &lt;what is wrong&gt;</code> and, indented, what to do about
+<code>confirmation_required</code>, <code>missing_package</code>, <code>cancelled</code>, <code>internal_error</code>; without it, <code>error: &lt;what is wrong&gt;</code> and, indented, what to do about
 it. A bug (an exception nobody expected) says so and what to report; <code>--debug</code> adds the traceback. Colour is never used.</p>
 <p><strong>Where results go.</strong> <code>run</code>, <code>batch</code>, <code>group run</code> and <code>group setup</code> take <code>--out DIR</code> (exactly there) or <code>--output-folder DIR</code> (the layout PyAT&#39;s exports use, see <a href="#output-folders">Output folders</a>: <code>DIR/&lt;data type&gt;/&lt;recording&gt; (Analysis)/</code>, <code>DIR/Group Analysis/&lt;group&gt;</code>; a repeat run is a new set of files, never an overwrite; <code>batch</code>&#39;s combined
 tables go to <code>DIR/Batch/&lt;NN_kind&gt;/</code>). The two are mutually exclusive. <code>group run SETTINGS --out DIR</code> leaves the settings
@@ -1372,7 +1569,7 @@ them with their parameters.</p>
 </tr>
 <tr>
 <td><code>compute.event_peth</code>, <code>compute.peaks</code></td>
-<td>the Event PETH window&#39;s trial matrix, and Peak Finder</td>
+<td>the Event PETH window&#39;s trial matrix, and Peak Finder (<code>start_buffer_s</code>; <code>n_shuffles</code> and <code>seed</code> add a <code>null</code> per event type, with <code>p_count_holm</code> across the types, off by default here; scope <code>events</code> also answers <code>summary</code>, <code>peak_scan_summary</code>&#39;s rows)</td>
 </tr>
 <tr>
 <td><code>files.inspect</code>, <code>pt2.load</code></td>
@@ -1648,6 +1845,10 @@ required here — there&#39;s nothing to validate without at least one pair.</p>
 units) — rough guide ~0.2 small, ~0.5 medium, ~0.8 large. Typically
 called with <code>group1</code> = same-subject similarities, <code>group2</code> = pooled
 null similarities.</p>
+<h3 id="validation_verdictp_value_fdr-ci_lower---str"><code>validation_verdict(p_value_fdr, ci_lower) -&gt; str</code></h3>
+<p>The plain-language quick read of one pair&#39;s numbers, which is the <code>verdict</code> column of <code>build_validation_summary</code>: <code>&quot;Likely a real effect&quot;</code> (corrected p
+under 0.05 and the bootstrap interval clear of zero), <code>&quot;Weak/borderline — worth more subjects&quot;</code> (corrected p under 0.10), <code>&quot;No evidence of an effect&quot;</code>, or
+<code>&quot;Not enough data yet&quot;</code> when there is no p. Not a substitute for the columns it is read from.</p>
 <h3 id="benjamini_hochbergp_values---ndarray"><code>benjamini_hochberg(p_values) -&gt; ndarray</code></h3>
 <p>False-discovery-rate correction across multiple hypothesis tests — less
 conservative than Bonferroni while still controlling the <em>expected
